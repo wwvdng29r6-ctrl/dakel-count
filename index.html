@@ -1,0 +1,2638 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+<title>ספירת אסירים — בית סוהר דקל</title>
+<!-- PWA META TAGS -->
+<meta name="application-name" content="ספירת אסירים">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ספירת אסירים">
+<meta name="theme-color" content="#0d1117">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="מערכת ספירת אסירים — בית סוהר דקל">
+<!-- PWA MANIFEST (injected by JS) -->
+<link rel="manifest" id="pwaManifest">
+<!-- APPLE TOUCH ICONS (inline SVG via JS) -->
+<link rel="apple-touch-icon" id="appleTouchIcon">
+<link rel="icon" type="image/svg+xml" id="faviconSvg">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<!-- FIREBASE SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey: "AIzaSyBSV1dq1NgIr92wLbDelT5K6LgsOL9NQVQ",
+    authDomain: "dekel-prisoner-count-fcc36.firebaseapp.com",
+    databaseURL: "https://dekel-prisoner-count-fcc36-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "dekel-prisoner-count-fcc36",
+    storageBucket: "dekel-prisoner-count-fcc36.firebasestorage.app",
+    messagingSenderId: "174981013586",
+    appId: "1:174981013586:web:9e69e7ac42ddff46d4ff8b"
+  });
+  const db = firebase.database();
+  const R = path => db.ref(path);
+  const fbGet  = async path => { const s=await R(path).once('value'); return s.val(); };
+  const fbSet  = async (path,val) => R(path).set(val);
+  const fbDel  = async path => R(path).remove();
+</script>
+<style>
+:root {
+  --bg:#0d1117; --s1:#161b27; --s2:#1e2535; --s3:#252d42;
+  --border:#2d3a52; --accent:#2563eb;
+  --green:#16a34a; --red:#dc2626; --amber:#d97706;
+  --text:#e8edf8; --muted:#6b7fa0; --dim:#3d4f6b; --r:14px;
+  --done-bg:rgba(22,163,74,0.12); --done-border:rgba(22,163,74,0.5);
+  --active-bg:rgba(37,99,235,0.08); --active-border:#2563eb;
+}
+body.light {
+  --bg:#f1f5f9; --s1:#fff; --s2:#f8fafc; --s3:#e2e8f0;
+  --border:#cbd5e1; --text:#0f172a; --muted:#64748b; --dim:#94a3b8;
+  --done-bg:rgba(22,163,74,0.08); --done-border:rgba(22,163,74,0.4);
+  --active-bg:rgba(37,99,235,0.06);
+}
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+html { height:100%; overflow:hidden; }
+body {
+  height:100%; height:100dvh;
+  overflow:hidden;
+  position:fixed; width:100%;
+  font-family:'Heebo',sans-serif; background:var(--bg); color:var(--text);
+  display:flex; flex-direction:column; transition:background .2s,color .2s;
+}
+.scroll-area {
+  flex:1; overflow-y:scroll; -webkit-overflow-scrolling:touch;
+  padding:10px 12px 16px; display:flex; flex-direction:column; gap:7px;
+  overscroll-behavior:contain;
+}
+
+/* TOPBAR */
+.topbar {
+  background:var(--s1); border-bottom:1px solid var(--border);
+  padding:8px 12px; display:flex; align-items:center;
+  justify-content:space-between; flex-shrink:0; gap:8px;
+}
+.topbar-left { display:flex; align-items:center; gap:8px; min-width:0; }
+.logo-img { width:38px; height:38px; object-fit:contain; flex-shrink:0; }
+.topbar-titles { display:flex; flex-direction:column; min-width:0; }
+.app-title  { font-size:14px; font-weight:900; line-height:1.2; white-space:nowrap; }
+.app-sub    { font-size:10px; color:var(--muted); font-weight:600; }
+.sync-dot {
+  width:7px; height:7px; border-radius:50%; flex-shrink:0;
+  background:var(--green); box-shadow:0 0 5px var(--green); animation:pulse 2s infinite;
+}
+.sync-dot.syncing { background:var(--amber); box-shadow:0 0 5px var(--amber); }
+.sync-dot.error   { background:var(--red);   box-shadow:0 0 5px var(--red); animation:none; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+.topbar-right { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.icon-btn {
+  background:var(--s2); border:1px solid var(--border); color:var(--muted);
+  font-size:16px; width:34px; height:34px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:all .15s;
+}
+.icon-btn:active { transform:scale(.92); }
+
+/* ACTIVE COUNT BANNER */
+.active-banner {
+  display:none; background:linear-gradient(90deg,#1e3a8a,#1d4ed8);
+  padding:8px 14px; flex-shrink:0;
+  flex-direction:row; align-items:center; justify-content:space-between;
+  border-bottom:1px solid #2a4a8a;
+}
+.active-banner.on { display:flex; }
+.active-badge {
+  display:flex; align-items:center; gap:8px;
+}
+.pulse-dot {
+  width:10px; height:10px; border-radius:50%; background:#f87171;
+  box-shadow:0 0 0 0 rgba(248,113,113,.5);
+  animation:ripple 1.4s infinite;
+}
+@keyframes ripple {
+  0%  { box-shadow:0 0 0 0 rgba(248,113,113,.5); }
+  70% { box-shadow:0 0 0 8px rgba(248,113,113,0); }
+  100%{ box-shadow:0 0 0 0 rgba(248,113,113,0); }
+}
+.active-label { font-size:13px; font-weight:900; color:#fff; }
+.active-timer { font-size:18px; font-weight:900; color:#fbbf24; font-variant-numeric:tabular-nums; direction:ltr; }
+.stop-btn {
+  background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3);
+  color:#fff; border-radius:10px; padding:6px 14px;
+  font-family:'Heebo',sans-serif; font-size:13px; font-weight:800; cursor:pointer;
+}
+.stop-btn:active { transform:scale(.95); }
+
+/* INFO BAR */
+.info-bar {
+  background:var(--s2); border-bottom:1px solid var(--border);
+  padding:6px 14px; display:flex; align-items:center;
+  justify-content:space-between; flex-shrink:0; gap:8px;
+}
+.operator-display {
+  display:flex; align-items:center; gap:6px;
+  font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; flex-shrink:0;
+}
+.operator-display span { color:var(--text); }
+#countNameDisplay { font-size:12px; font-weight:900; color:var(--accent); text-align:center; }
+.live-clock { font-size:11px; color:var(--muted); direction:ltr; text-align:left; flex-shrink:0; }
+
+/* TOTAL BAR */
+.total-bar {
+  background:linear-gradient(90deg,#1a3a6e,#1e3a8a);
+  padding:10px 14px; display:flex; align-items:center;
+  justify-content:space-between; flex-shrink:0; border-bottom:1px solid #2a4a8a;
+  transition:background .3s;
+}
+.total-bar.active-mode { background:linear-gradient(90deg,#065f46,#047857); border-bottom-color:#065f46; }
+body.light .total-bar { background:linear-gradient(90deg,#1e40af,#2563eb); }
+body.light .total-bar.active-mode { background:linear-gradient(90deg,#065f46,#059669); }
+.total-label { font-size:11px; color:#93c5fd; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.total-bar.active-mode .total-label { color:#a7f3d0; }
+.total-number { font-size:34px; font-weight:900; color:#fff; line-height:1; }
+.sub-totals { display:flex; gap:14px; }
+.sub-total  { text-align:center; }
+.sub-total .sv { font-size:18px; font-weight:800; color:#bfdbfe; }
+.sub-total .sl { font-size:10px; color:#60a5fa; }
+.total-bar.active-mode .sv { color:#a7f3d0; }
+.total-bar.active-mode .sl { color:#6ee7b7; }
+
+/* TABS */
+.tabs { display:flex; background:var(--s1); border-bottom:1px solid var(--border); flex-shrink:0; align-items:center; }
+.tab {
+  flex:1; padding:10px 4px; text-align:center;
+  font-size:12px; font-weight:700; color:var(--muted);
+  cursor:pointer; border-bottom:2px solid transparent; transition:all .15s;
+}
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.tab-badge {
+  display:inline-block; background:var(--s3); color:var(--muted);
+  border-radius:10px; font-size:10px; padding:1px 5px; margin-right:2px;
+}
+.tab.active .tab-badge { background:rgba(37,99,235,.2); color:var(--accent); }
+.tab-sound-btn {
+  flex-shrink:0; background:none; border:none; cursor:pointer;
+  font-size:15px; padding:0 10px; height:100%; color:var(--muted);
+  display:flex; align-items:center; border-bottom:2px solid transparent;
+  transition:color .15s;
+}
+.tab-sound-btn:active { transform:scale(.9); }
+
+/* SCROLL */
+.scroll-area::-webkit-scrollbar { display:none; }
+
+/* WING CARD */
+.wing-card {
+  background:var(--s1); border:1.5px solid var(--border);
+  border-radius:var(--r); transition:border-color .15s,background .15s;
+}
+.wing-card.filled { border-color:rgba(37,99,235,.4); }
+.wing-card.done   { background:var(--done-bg); border-color:var(--done-border); }
+.wing-main { display:flex; align-items:center; padding:11px 12px; gap:8px; }
+.wing-name-btn {
+  flex:1; user-select:none; display:flex; flex-direction:column; gap:2px; padding:2px 0; min-width:0;
+}
+.wing-name  { font-size:14px; font-weight:900; }
+.wing-sub   { font-size:10px; color:var(--muted); display:flex; align-items:center; gap:4px; }
+.chevron    { font-size:10px; color:var(--dim); transition:transform .2s; }
+.wing-card.open .chevron { transform:rotate(180deg); }
+.wing-right { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.status-btn {
+  width:30px; height:30px; border-radius:8px; border:1.5px solid var(--border);
+  background:var(--s2); cursor:pointer; font-size:14px;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s; flex-shrink:0; color:var(--muted);
+}
+.status-btn:active { transform:scale(.9); }
+.wing-card.done .status-btn { background:var(--green); border-color:var(--green); color:#fff; }
+.big-inp {
+  width:72px; background:var(--s3); border:1.5px solid var(--border);
+  border-radius:12px; outline:none; color:var(--text);
+  font-family:'Heebo',sans-serif; font-size:24px; font-weight:900;
+  text-align:center; direction:ltr; padding:7px 4px; -webkit-appearance:none;
+  transition:border-color .15s,background .15s; flex-shrink:0;
+}
+.big-inp:focus  { border-color:var(--accent); background:var(--s2); }
+.big-inp.filled { border-color:var(--accent); }
+.wing-card.done .big-inp { border-color:var(--green); }
+.big-inp::placeholder { color:var(--dim); font-size:18px; }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; }
+
+/* CELLS */
+.cells-area { display:none; padding:10px 12px 12px; border-top:1px solid var(--border); }
+.wing-card.open .cells-area { display:block; }
+.cells-note { font-size:10px; color:var(--muted); margin-bottom:8px; font-weight:600; }
+.cells-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(60px,1fr)); gap:6px; }
+.cell-box {
+  background:var(--bg); border:1.5px solid var(--border);
+  border-radius:10px; padding:5px 4px 7px; text-align:center; transition:border-color .15s;
+}
+.cell-box.filled { border-color:var(--green); }
+.cell-lbl { font-size:9px; color:var(--muted); font-weight:700; margin-bottom:2px; }
+.cell-inp {
+  width:100%; background:transparent; border:none; outline:none;
+  color:var(--text); font-family:'Heebo',sans-serif;
+  font-size:20px; font-weight:900; text-align:center; direction:ltr; -webkit-appearance:none;
+}
+.cell-inp::placeholder { color:var(--dim); }
+
+/* GENERAL ROW */
+.gen-row {
+  background:var(--s1); border:1.5px solid var(--border); border-radius:var(--r);
+  display:flex; align-items:center; padding:11px 14px; gap:10px; transition:border-color .15s;
+}
+.gen-row.filled { border-color:rgba(37,99,235,.4); }
+.gen-name { flex:1; font-size:14px; font-weight:800; }
+
+/* LOG ITEMS */
+.log-item {
+  background:var(--s1); border:1px solid var(--border); border-radius:var(--r);
+  padding:10px 14px; display:flex; flex-direction:column; gap:3px;
+}
+.log-who   { font-size:12px; font-weight:800; color:var(--accent); }
+.log-what  { font-size:13px; color:var(--text); }
+.log-when  { font-size:10px; color:var(--muted); }
+.log-empty { text-align:center; color:var(--muted); padding:40px 20px; font-size:14px; }
+
+/* QUICK SCROLL BAR */
+.quick-scroll {
+  display:none; background:var(--s1); border-bottom:1px solid var(--border);
+  padding:6px 10px; overflow-x:auto; flex-shrink:0; gap:5px;
+  -webkit-overflow-scrolling:touch; flex-direction:row;
+}
+.quick-scroll::-webkit-scrollbar { display:none; }
+.quick-scroll.visible { display:flex; }
+.qs-btn {
+  flex-shrink:0; background:var(--s2); border:1px solid var(--border);
+  border-radius:10px; padding:7px 14px; font-size:13px; font-weight:800;
+  color:var(--muted); cursor:pointer; white-space:nowrap; transition:all .15s;
+  font-family:'Heebo',sans-serif;
+}
+.qs-btn:active { background:var(--accent); color:#fff; border-color:var(--accent); transform:scale(.95); }
+.qs-btn.done-q   { color:#fff; background:var(--green); border-color:var(--green); }
+.qs-btn.has-data { color:#fff; background:var(--accent); border-color:var(--accent); }
+
+/* LOCK BUTTON - hidden, auto-lock only */
+.lock-btn { display:none; }
+.locked-by-label { font-size:9px; color:var(--amber); font-weight:700; margin-top:1px; }
+
+/* locked by other = orange card with pulsing border */
+.wing-card.locked-other {
+  background:rgba(217,119,6,0.10);
+  border-color:var(--amber) !important;
+  animation:orangePulse 2s ease-in-out infinite;
+}
+@keyframes orangePulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(217,119,6,0); }
+  50%      { box-shadow:0 0 0 4px rgba(217,119,6,0.25); }
+}
+.wing-card.locked-other .big-inp { pointer-events:none; opacity:.6; }
+.locked-other-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  background:rgba(217,119,6,0.2); border:1px solid var(--amber);
+  border-radius:8px; padding:2px 7px; font-size:10px;
+  color:var(--amber); font-weight:800; margin-top:2px;
+}
+.locked-other-badge .lo-dot {
+  width:6px; height:6px; border-radius:50%; background:var(--amber);
+  animation:pulse 1s infinite;
+}
+
+/* PRESENCE BAR */
+.presence-bar {
+  background:var(--bg); border-bottom:1px solid var(--border);
+  padding:4px 14px; display:flex; align-items:center; gap:6px;
+  flex-shrink:0; overflow-x:auto; min-height:28px;
+}
+.presence-bar::-webkit-scrollbar { display:none; }
+.presence-label { font-size:10px; color:var(--dim); font-weight:700; white-space:nowrap; flex-shrink:0; }
+.presence-pill {
+  display:inline-flex; align-items:center; gap:4px;
+  background:var(--s2); border:1px solid var(--border);
+  border-radius:20px; padding:2px 8px; font-size:11px; font-weight:700;
+  color:var(--text); white-space:nowrap; flex-shrink:0;
+}
+.presence-dot { width:6px; height:6px; border-radius:50%; background:var(--green); flex-shrink:0; }
+.presence-me  { border-color:var(--accent); color:var(--accent); }
+
+
+
+/* ARCHIVE */
+.archive-item {
+  background:var(--s1); border:1.5px solid var(--border); border-radius:var(--r);
+  padding:12px 14px; margin-bottom:8px; cursor:pointer; transition:border-color .15s;
+}
+.archive-item:active { border-color:var(--accent); }
+.archive-header { display:flex; justify-content:space-between; align-items:center; }
+.archive-total { font-size:26px; font-weight:900; color:var(--accent); }
+.archive-meta  { font-size:12px; color:var(--muted); margin-top:2px; }
+.archive-name  { font-size:13px; font-weight:800; }
+.archive-wings { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
+.archive-wing-pill {
+  font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px;
+  background:var(--s2); border:1px solid var(--border); color:var(--muted);
+}
+.archive-wing-pill.has { color:var(--text); border-color:rgba(37,99,235,.4); }
+
+/* ARCHIVE DETAIL */
+.arc-detail-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 4px; border-bottom:1px solid var(--border); font-size:14px;
+}
+.arc-detail-row:last-child { border-bottom:none; }
+
+/* SECTION TITLE */
+.section-title {
+  font-size:10px; font-weight:700; color:var(--muted);
+  text-transform:uppercase; letter-spacing:.8px; padding:4px 2px 2px;
+}
+
+/* BOTTOM BAR */
+.bottom-bar {
+  background:var(--s1); border-top:1px solid var(--border);
+  padding:8px 10px; display:flex; gap:6px; flex-shrink:0;
+}
+.btn {
+  flex:1; padding:12px 6px; border-radius:12px; border:none;
+  font-family:'Heebo',sans-serif; font-size:13px; font-weight:800;
+  cursor:pointer; transition:all .15s;
+}
+.btn:active { transform:scale(.96); }
+.btn-save   { background:var(--accent); color:#fff; }
+.btn-reset  { background:var(--s2); color:#f87171; border:1px solid var(--border); }
+.btn-export { background:var(--s2); color:#4ade80; border:1px solid var(--border); }
+.btn-start  { background:linear-gradient(135deg,#065f46,#047857); color:#fff; flex:1.3; }
+.btn-start.active { background:linear-gradient(135deg,#7f1d1d,#b91c1c); }
+
+/* OVERLAYS */
+.overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.6);
+  z-index:200; display:none; align-items:flex-end;
+}
+.overlay.open { display:flex; }
+.sheet {
+  background:var(--s1); width:100%; border-radius:20px 20px 0 0;
+  max-height:82dvh; overflow-y:auto; padding:0 0 36px;
+  border-top:1px solid var(--border);
+}
+.sheet-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:12px auto 14px; }
+.sheet-title  { text-align:center; font-size:17px; font-weight:900; margin-bottom:14px; padding:0 16px; }
+.sheet-close {
+  width:calc(100% - 28px); margin:14px 14px 0; padding:13px;
+  border-radius:12px; border:1px solid var(--border); background:transparent;
+  color:var(--muted); font-family:'Heebo',sans-serif; font-size:14px; cursor:pointer;
+}
+.report-total {
+  background:var(--accent); margin:0 14px 12px; border-radius:12px;
+  padding:14px 16px; display:flex; justify-content:space-between; align-items:center;
+  font-weight:800; font-size:15px; color:#fff;
+}
+.report-total .rt-num { font-size:28px; font-weight:900; }
+.report-section { padding:4px 14px; }
+.report-section-title { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; font-weight:700; margin-bottom:4px; }
+.report-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 4px; border-bottom:1px solid var(--border); font-size:14px;
+}
+.report-row:last-child { border-bottom:none; }
+.rn { color:var(--muted); } .rv { font-weight:800; font-size:17px; }
+.rv.z { color:var(--dim); } .rv.p { color:var(--green); }
+.export-btn {
+  width:100%; background:var(--s2); border:1px solid var(--border);
+  border-radius:14px; padding:14px 16px;
+  display:flex; align-items:center; gap:14px;
+  color:var(--text); text-align:right; cursor:pointer; transition:all .15s; margin-bottom:8px;
+}
+.export-btn:active { background:var(--s3); transform:scale(.98); }
+.operator-form { padding:0 16px 4px; display:flex; flex-direction:column; gap:10px; }
+.text-inp {
+  width:100%; background:var(--s2); border:1.5px solid var(--border);
+  border-radius:12px; outline:none; color:var(--text);
+  font-family:'Heebo',sans-serif; font-size:18px; font-weight:700;
+  text-align:right; padding:12px 14px; transition:border-color .15s;
+}
+.text-inp:focus { border-color:var(--accent); }
+.save-operator-btn {
+  width:100%; padding:13px; border-radius:12px; border:none;
+  background:var(--accent); color:#fff;
+  font-family:'Heebo',sans-serif; font-size:15px; font-weight:800; cursor:pointer;
+}
+.confirm-btns { display:flex; gap:10px; padding:0 14px; }
+
+/* 3-DOTS MENU */
+.menu-wrap { position:relative; }
+.menu-dropdown {
+  display:none; position:absolute; top:42px; left:0;
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:12px; min-width:160px; z-index:500;
+  box-shadow:0 8px 24px rgba(0,0,0,.3); overflow:hidden;
+}
+.menu-dropdown.open { display:block; }
+.menu-item {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 16px; font-size:14px; font-weight:700;
+  color:var(--text); cursor:pointer; transition:background .12s;
+  font-family:'Heebo',sans-serif; border:none; background:transparent; width:100%; text-align:right;
+}
+.menu-item:active { background:var(--s3); }
+.menu-item:not(:last-child) { border-bottom:1px solid var(--border); }
+
+/* TOAST */
+.toast {
+  position:fixed; top:76px; left:50%;
+  transform:translateX(-50%) translateY(-16px);
+  background:#1a2a1a; color:var(--green); border:1px solid var(--green);
+  border-radius:30px; padding:10px 22px; font-size:14px; font-weight:700;
+  opacity:0; transition:all .3s; z-index:400; white-space:nowrap;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* LOADING */
+.loading-overlay {
+  position:fixed; inset:0; background:var(--bg); z-index:500;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+}
+.loading-overlay.hidden { display:none; }
+.spinner {
+  width:36px; height:36px; border:3px solid var(--border);
+  border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* OFFLINE BANNER */
+.offline-banner {
+  display:none; background:linear-gradient(90deg,#7f1d1d,#b91c1c);
+  padding:6px 14px; flex-shrink:0; align-items:center;
+  justify-content:space-between; border-bottom:1px solid #991b1b;
+}
+.offline-banner.visible { display:flex; }
+.offline-label { font-size:12px; font-weight:800; color:#fff; display:flex; align-items:center; gap:6px; }
+.offline-queue  { font-size:11px; color:#fca5a5; }
+
+/* GHOST TYPING (live preview) */
+.ghost-wrap { position:relative; }
+.ghost-pill {
+  position:absolute; bottom:-18px; right:0; left:0;
+  background:rgba(37,99,235,.18); border:1px solid rgba(37,99,235,.4);
+  border-radius:6px; font-size:9px; color:var(--accent); font-weight:700;
+  padding:1px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  pointer-events:none; z-index:10; text-align:center;
+}
+
+/* CHAT */
+.chat-fab {
+  position:fixed; bottom:80px; left:14px; z-index:150;
+  width:48px; height:48px; border-radius:50%;
+  background:var(--accent); border:none; color:#fff;
+  font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 4px 16px rgba(37,99,235,.5); transition:transform .15s;
+}
+.chat-fab:active { transform:scale(.9); }
+.chat-fab-badge {
+  position:absolute; top:-2px; right:-2px; background:#ef4444;
+  color:#fff; border-radius:10px; font-size:10px; font-weight:900;
+  padding:1px 5px; min-width:18px; text-align:center;
+  border:2px solid var(--bg); display:none;
+}
+.chat-overlay { align-items:flex-end; }
+.chat-sheet { max-height:80dvh; display:flex; flex-direction:column; }
+.chat-messages {
+  flex:1; overflow-y:auto; padding:8px 14px; display:flex;
+  flex-direction:column; gap:8px; min-height:200px;
+}
+.chat-messages::-webkit-scrollbar { display:none; }
+.chat-msg { display:flex; }
+.chat-me    { justify-content:flex-start; }
+.chat-other { justify-content:flex-end; }
+.chat-bubble {
+  max-width:75%; border-radius:16px; padding:8px 12px; word-break:break-word;
+}
+.chat-bubble-me    { background:var(--accent); color:#fff; border-bottom-right-radius:4px; }
+.chat-bubble-other { background:var(--s3); color:var(--text); border-bottom-left-radius:4px; }
+.chat-name { font-size:10px; opacity:.75; margin-bottom:2px; font-weight:700; }
+.chat-text { font-size:14px; font-weight:600; line-height:1.4; }
+.chat-time { font-size:9px; opacity:.6; margin-top:3px; text-align:left; direction:ltr; }
+.chat-input-row {
+  display:flex; gap:8px; padding:10px 14px 0; border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+.chat-inp {
+  flex:1; background:var(--s2); border:1.5px solid var(--border);
+  border-radius:12px; outline:none; color:var(--text);
+  font-family:'Heebo',sans-serif; font-size:15px; font-weight:600;
+  padding:10px 14px; transition:border-color .15s; direction:rtl;
+}
+.chat-inp:focus { border-color:var(--accent); }
+.chat-send-btn {
+  background:var(--accent); border:none; color:#fff; border-radius:12px;
+  width:44px; height:44px; font-size:18px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.chat-send-btn:active { transform:scale(.9); }
+
+/* ═══ TABLET (768px+) ═══ */
+@media (min-width: 768px) {
+
+  /* LAYOUT — center content with max-width */
+  body { align-items:center; }
+  .topbar, .offline-banner, .active-banner, .info-bar,
+  .presence-bar, .total-bar, .tabs, .quick-scroll,
+  .scroll-area, .bottom-bar,
+  div[style*="נבנה ועוצב"] { max-width:900px; width:100%; }
+
+  /* TOPBAR */
+  .app-title  { font-size:17px; }
+  .app-sub    { font-size:12px; }
+  .logo-img   { width:46px; height:46px; }
+  .icon-btn   { width:40px; height:40px; font-size:18px; }
+
+  /* TOTAL BAR */
+  .total-number { font-size:48px; }
+  .total-label  { font-size:13px; }
+  .sub-total .sv { font-size:24px; }
+  .sub-total .sl { font-size:12px; }
+  .total-bar    { padding:14px 24px; }
+
+  /* TABS */
+  .tab { font-size:14px; padding:12px 8px; }
+  .tab-badge { font-size:11px; padding:2px 7px; }
+
+  /* QUICK SCROLL */
+  .quick-scroll { padding:8px 16px; gap:7px; }
+  .qs-btn { font-size:14px; padding:9px 18px; border-radius:12px; }
+
+  /* SCROLL AREA — 2-column grid for wing cards */
+  .scroll-area { padding:14px 16px 20px; }
+  .scroll-area > .wing-card,
+  .scroll-area > .gen-row { width:100%; }
+
+  /* 2-column wings grid */
+  #scrollArea.wings-tab {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    align-items:start;
+  }
+  #scrollArea.wings-tab > .section-title {
+    grid-column:1 / -1;
+  }
+
+  /* WING CARD */
+  .wing-name  { font-size:16px; }
+  .wing-sub   { font-size:11px; }
+  .wing-main  { padding:14px 16px; gap:10px; }
+  .big-inp    { width:84px; font-size:28px; padding:9px 4px; border-radius:14px; }
+  .status-btn { width:36px; height:36px; font-size:16px; border-radius:10px; }
+
+  /* CELLS */
+  .cells-grid { grid-template-columns:repeat(auto-fill,minmax(72px,1fr)); gap:8px; }
+  .cell-inp   { font-size:24px; }
+  .cell-lbl   { font-size:10px; }
+  .cell-box   { padding:6px 4px 9px; border-radius:12px; }
+
+  /* GENERAL ROW */
+  .gen-name   { font-size:16px; }
+  .gen-row    { padding:14px 18px; }
+
+  /* INFO BAR */
+  .operator-display { font-size:14px; gap:8px; }
+  #countNameDisplay { font-size:14px; }
+  .live-clock       { font-size:13px; }
+  .info-bar         { padding:8px 18px; }
+
+  /* PRESENCE BAR */
+  .presence-pill { font-size:12px; padding:3px 10px; }
+  .presence-label{ font-size:11px; }
+
+  /* BOTTOM BAR */
+  .bottom-bar { padding:10px 16px; gap:10px; }
+  .btn        { padding:14px 10px; font-size:15px; border-radius:14px; }
+
+  /* ACTIVE BANNER */
+  .active-label { font-size:15px; }
+  .active-timer { font-size:22px; }
+  .stop-btn     { font-size:15px; padding:8px 20px; }
+
+  /* SHEET / OVERLAY — max-width centered */
+  .sheet {
+    max-width:600px;
+    margin:0 auto;
+    border-radius:20px;
+    margin-bottom:40px;
+  }
+  .overlay { align-items:center; justify-content:center; }
+  .sheet-title { font-size:20px; }
+
+  /* LOG */
+  .log-what { font-size:14px; }
+  .log-who  { font-size:13px; }
+  .log-when { font-size:11px; }
+
+  /* CHAT FAB */
+  .chat-fab { width:56px; height:56px; font-size:24px; bottom:90px; left:20px; }
+  .chat-sheet { max-width:540px; margin:0 auto; border-radius:20px; margin-bottom:40px; }
+
+  /* MENU DROPDOWN */
+  .menu-dropdown { min-width:200px; }
+  .menu-item { font-size:15px; padding:14px 18px; }
+
+  /* TOAST */
+  .toast { font-size:15px; padding:12px 28px; }
+}
+
+/* ═══ LARGE TABLET / LANDSCAPE (1024px+) ═══ */
+@media (min-width: 1024px) {
+  .topbar, .offline-banner, .active-banner, .info-bar,
+  .presence-bar, .total-bar, .tabs, .quick-scroll,
+  .scroll-area, .bottom-bar,
+  div[style*="נבנה ועוצב"] { max-width:1100px; }
+
+  #scrollArea.wings-tab {
+    grid-template-columns:1fr 1fr 1fr;
+  }
+
+  .cells-grid { grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); }
+  .big-inp    { width:90px; font-size:30px; }
+}
+
+/* PWA INSTALL BANNER */
+.pwa-banner {
+  display:none; background:linear-gradient(90deg,#1e3a8a,#1d4ed8);
+  padding:10px 14px; flex-shrink:0; align-items:center;
+  justify-content:space-between; gap:10px; border-bottom:1px solid #2a4a8a;
+  animation:slideDown .3s ease;
+}
+.pwa-banner.visible { display:flex; }
+@keyframes slideDown { from{transform:translateY(-100%);opacity:0} to{transform:translateY(0);opacity:1} }
+.pwa-banner-text { display:flex; flex-direction:column; gap:2px; }
+.pwa-banner-title { font-size:13px; font-weight:900; color:#fff; }
+.pwa-banner-sub   { font-size:11px; color:#93c5fd; }
+.pwa-banner-btns  { display:flex; gap:8px; flex-shrink:0; }
+.pwa-install-btn {
+  background:#fff; color:#1e3a8a; border:none; border-radius:10px;
+  padding:7px 14px; font-family:'Heebo',sans-serif;
+  font-size:13px; font-weight:900; cursor:pointer; white-space:nowrap;
+}
+.pwa-install-btn:active { transform:scale(.95); }
+.pwa-dismiss-btn {
+  background:rgba(255,255,255,.15); color:#fff;
+  border:1px solid rgba(255,255,255,.3);
+  border-radius:10px; padding:7px 10px; font-size:13px; cursor:pointer;
+}
+/* iOS INSTALL HINT */
+.ios-hint {
+  display:none; position:fixed; bottom:90px; left:50%;
+  transform:translateX(-50%);
+  background:#1e3a8a; color:#fff; border-radius:14px;
+  padding:14px 18px; font-size:13px; font-weight:700;
+  text-align:center; z-index:300; max-width:290px; line-height:1.6;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+  animation:fadeInUp .3s ease;
+}
+.ios-hint.visible { display:block; }
+.ios-hint::after {
+  content:''; position:absolute; bottom:-8px; left:50%;
+  transform:translateX(-50%);
+  border:8px solid transparent; border-bottom:none;
+  border-top-color:#1e3a8a;
+}
+/* QR OVERLAY */
+.qr-wrap {
+  display:flex; flex-direction:column; align-items:center;
+  padding:10px 16px 4px; gap:14px;
+}
+.qr-canvas-wrap {
+  background:#fff; border-radius:16px; padding:16px;
+  box-shadow:0 4px 24px rgba(0,0,0,.2);
+}
+.qr-url-box {
+  width:100%; background:var(--s2); border:1.5px solid var(--border);
+  border-radius:12px; padding:10px 14px; font-size:11px;
+  color:var(--muted); word-break:break-all; text-align:center;
+  font-family:monospace; direction:ltr;
+}
+.qr-hint {
+  font-size:12px; color:var(--muted); text-align:center;
+  font-weight:600; line-height:1.6;
+}
+.qr-action-btns { display:flex; gap:8px; width:100%; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div style="color:var(--muted);font-size:14px">טוען נתונים...</div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <img class="logo-img" id="logoImg" src="" alt="">
+    <div class="topbar-titles">
+      <div class="app-title">ספירת אסירים</div>
+      <div class="app-sub">בית סוהר דקל</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;font-weight:600">נבנה ועוצב ע״י שלמה וונדה</div>
+    </div>
+    <div class="sync-dot" id="syncDot"></div>
+  </div>
+  <div class="topbar-right">
+    <div class="icon-btn" id="themeBtn" onclick="toggleTheme()">🌙</div>
+    <div class="menu-wrap">
+      <div class="icon-btn" onclick="toggleMenu()" id="menuBtn">⋯</div>
+      <div class="menu-dropdown" id="menuDropdown">
+        <button class="menu-item" onclick="openReport();closeMenu()">📋 דוח ספירה</button>
+        <button class="menu-item" onclick="openLogSheet();closeMenu()">📜 לוג שינויים <span id="badge-log-menu" style="margin-right:auto;background:var(--s3);color:var(--muted);border-radius:10px;font-size:10px;padding:1px 6px">0</span></button>
+        <button class="menu-item" onclick="openArchive();closeMenu()">🗄️ ארכיון ספירות <span id="badge-archive" style="margin-right:auto;background:var(--s3);color:var(--muted);border-radius:10px;font-size:10px;padding:1px 6px">0</span></button>
+        <button class="menu-item" onclick="openQR();closeMenu()">📲 שתף QR קוד</button>
+        <button class="menu-item" onclick="toggleSound();closeMenu()">🔊 <span id="soundMenuLabel">צלילים — פעיל</span></button>
+        <button class="menu-item" onclick="toggleAutoNight();closeMenu()">🌙 מצב לילה אוטומטי <span id="autoNightBadge" style="margin-right:auto;background:var(--green);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px">פעיל</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PWA INSTALL BANNER -->
+<div class="pwa-banner" id="pwaBanner">
+  <div class="pwa-banner-text">
+    <div class="pwa-banner-title">📲 התקן כאפליקציה</div>
+    <div class="pwa-banner-sub">גישה מהירה מהמסך הראשי</div>
+  </div>
+  <div class="pwa-banner-btns">
+    <button class="pwa-install-btn" onclick="triggerPwaInstall()">התקן</button>
+    <button class="pwa-dismiss-btn" onclick="dismissPwaBanner()">✕</button>
+  </div>
+</div>
+
+<!-- iOS HINT -->
+<div class="ios-hint" id="iosHint">
+  📲 כדי להוסיף למסך הבית:<br>
+  לחץ על <strong>שתף</strong> ⬆️<br>
+  ואז <strong>הוסף למסך הבית</strong>
+  <div style="margin-top:8px">
+    <button onclick="document.getElementById('iosHint').classList.remove('visible')"
+      style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:4px 14px;font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer">סגור</button>
+  </div>
+</div>
+
+<!-- OFFLINE BANNER -->
+<div class="offline-banner" id="offlineBanner">
+  <div class="offline-label">📵 אין חיבור לאינטרנט</div>
+  <div class="offline-queue" id="offlineQueueLabel">השינויים יסונכרנו כשיחזור החיבור</div>
+</div>
+
+<!-- ACTIVE COUNT BANNER -->
+<div class="active-banner" id="activeBanner">
+  <div class="active-badge">
+    <div class="pulse-dot"></div>
+    <div class="active-label">ספירה פעילה</div>
+  </div>
+  <div class="active-timer" id="activeTimer">00:00</div>
+  <button class="stop-btn" onclick="stopCount()">סיים ספירה</button>
+</div>
+
+<!-- INFO BAR -->
+<div class="info-bar">
+  <div class="operator-display" onclick="openOperator()">👤 <span id="operatorName">הגדר שם</span></div>
+  <div id="countNameDisplay">—</div>
+  <div class="live-clock" id="liveClock">—</div>
+</div>
+
+<!-- PRESENCE BAR -->
+<div class="presence-bar" id="presenceBar">
+  <div class="presence-label">מחובר:</div>
+  <div id="presencePills"></div>
+</div>
+
+<!-- TOTAL BAR -->
+<div class="total-bar" id="totalBar">
+  <div>
+    <div class="total-label" id="totalLabel">סה״כ ספירה</div>
+    <div class="total-number" id="grandTotal">0</div>
+  </div>
+  <div class="sub-totals">
+    <div class="sub-total"><div class="sv" id="wingsTotalDisp">0</div><div class="sl">אגפים</div></div>
+    <div class="sub-total"><div class="sv" id="genTotalDisp">0</div><div class="sl">מקומות ציבוריים</div></div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" id="tab-wings"   onclick="switchTab('wings')">אגפים <span class="tab-badge" id="badge-wings">0</span></div>
+  <div class="tab"        id="tab-general" onclick="switchTab('general')">מקומות ציבוריים <span class="tab-badge" id="badge-general">0</span></div>
+</div>
+
+<!-- QUICK SCROLL -->
+<div class="quick-scroll" id="quickScroll"></div>
+
+<div class="scroll-area" id="scrollArea"></div>
+
+<div style="background:var(--s1);border-top:1px solid var(--border);text-align:center;padding:5px;font-size:12px;color:var(--muted);font-weight:600;flex-shrink:0">נבנה ועוצב ע״י שלמה וונדה</div>
+
+<div class="bottom-bar">
+  <button class="btn btn-reset"  onclick="doReset()">🔄 איפוס</button>
+  <button class="btn btn-export" onclick="openExport()">📤 ייצוא</button>
+  <button class="btn btn-start"  id="startBtn" onclick="toggleCount()">▶ התחל ספירה</button>
+  <button class="btn btn-save"   onclick="doSave()">💾 שמור</button>
+</div>
+
+<!-- REPORT -->
+<div class="overlay" id="reportOverlay" onclick="bgClose(event,'reportOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">📋 דוח ספירה</div>
+    <div id="reportContent"></div>
+    <button class="sheet-close" onclick="closeOverlay('reportOverlay')">סגור</button>
+  </div>
+</div>
+
+<!-- EXPORT -->
+<div class="overlay" id="exportOverlay" onclick="bgClose(event,'exportOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">📤 ייצוא ספירה</div>
+    <div style="padding:0 14px 4px">
+      <button class="export-btn" onclick="exportWhatsApp()">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" style="width:28px;height:28px;flex-shrink:0" alt="WhatsApp">
+        <div><div style="font-size:14px;font-weight:800">ייצוא לוואטסאפ</div><div style="font-size:11px;color:var(--muted)">שתף ישירות באפליקציה</div></div>
+      </button>
+      <button class="export-btn" onclick="exportPDF()">
+        <span style="font-size:22px">📄</span>
+        <div><div style="font-size:14px;font-weight:800">ייצוא PDF</div><div style="font-size:11px;color:var(--muted)">פתח חלון הדפסה</div></div>
+      </button>
+      <button class="export-btn" onclick="exportExcel()">
+        <span style="font-size:22px">📊</span>
+        <div><div style="font-size:14px;font-weight:800">ייצוא Excel</div><div style="font-size:11px;color:var(--muted)">הורד קובץ CSV</div></div>
+      </button>
+    </div>
+    <button class="sheet-close" onclick="closeOverlay('exportOverlay')">סגור</button>
+  </div>
+</div>
+
+<!-- OPERATOR -->
+<div class="overlay" id="operatorOverlay" onclick="bgClose(event,'operatorOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">👤 שם המפעיל</div>
+    <div class="operator-form">
+      <input class="text-inp" id="operatorInput" type="text" placeholder="הכנס שם..." maxlength="30">
+      <button class="save-operator-btn" onclick="saveOperator()">שמור שם</button>
+    </div>
+    <button class="sheet-close" onclick="closeOverlay('operatorOverlay')">ביטול</button>
+  </div>
+</div>
+
+<!-- RESET CONFIRM -->
+<div class="overlay" id="resetOverlay">
+  <div class="sheet" style="padding-bottom:28px">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🔄 איפוס ספירה</div>
+    <div style="text-align:center;color:var(--muted);font-size:14px;padding:0 20px 18px">כל הנתונים ימחקו. האם להמשיך?</div>
+    <div class="confirm-btns">
+      <button class="btn btn-reset" onclick="confirmReset()">כן, אפס</button>
+      <button class="btn" style="background:var(--s2);color:var(--text);border:1px solid var(--border)" onclick="closeOverlay('resetOverlay')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- WHATSAPP -->
+<div class="overlay" id="waOverlay" onclick="bgClose(event,'waOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" style="width:24px;height:24px">
+      <span style="font-size:17px;font-weight:900">ייצוא לוואטסאפ</span>
+    </div>
+    <div style="padding:0 14px 10px">
+      <textarea id="waText" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:monospace;font-size:12px;padding:12px;min-height:200px;direction:rtl;resize:none;outline:none" readonly></textarea>
+    </div>
+    <div style="padding:0 14px;display:flex;gap:8px">
+      <button class="btn btn-save" style="background:#25D366;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openWhatsApp()">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" style="width:18px;height:18px;filter:brightness(10)">שלח בוואטסאפ
+      </button>
+      <button class="btn" style="background:var(--s2);color:var(--text);border:1px solid var(--border)" onclick="copyWA()">📋 העתק</button>
+    </div>
+    <button class="sheet-close" onclick="closeOverlay('waOverlay')">סגור</button>
+  </div>
+</div>
+
+<!-- ARCHIVE SHEET -->
+<div class="overlay" id="archiveOverlay" onclick="bgClose(event,'archiveOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🗄️ ארכיון ספירות</div>
+    <div id="archiveContent" style="padding:0 14px"></div>
+    <button class="sheet-close" onclick="closeOverlay('archiveOverlay')">סגור</button>
+  </div>
+</div>
+
+<!-- ARCHIVE DETAIL SHEET -->
+<div class="overlay" id="archiveDetailOverlay" onclick="bgClose(event,'archiveDetailOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="archiveDetailTitle">פרטי ספירה</div>
+    <div id="archiveDetailContent" style="padding:0 14px"></div>
+    <div style="padding:10px 14px 0;display:flex;gap:8px">
+      <button class="btn btn-save" style="font-size:13px" onclick="exportArchiveWA()">📤 שלח וואטסאפ</button>
+      <button class="btn" style="background:var(--s2);color:var(--text);border:1px solid var(--border);font-size:13px" onclick="closeOverlay('archiveDetailOverlay')">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR CODE OVERLAY -->
+<div class="overlay" id="qrOverlay" onclick="bgClose(event,'qrOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">📲 שתף QR קוד</div>
+    <div class="qr-wrap">
+      <div class="qr-hint">סרוק עם הטלפון כדי לפתוח את האפליקציה</div>
+      <div class="qr-canvas-wrap">
+        <canvas id="qrCanvas" width="220" height="220"></canvas>
+      </div>
+      <div class="qr-url-box" id="qrUrlDisplay">—</div>
+      <div class="qr-action-btns">
+        <button class="btn btn-save" onclick="downloadQR()" style="font-size:13px">💾 שמור תמונה</button>
+        <button class="btn" onclick="copyQRUrl()" style="background:var(--s2);color:var(--text);border:1px solid var(--border);font-size:13px">📋 העתק קישור</button>
+      </div>
+    </div>
+    <button class="sheet-close" onclick="closeOverlay('qrOverlay')">סגור</button>
+  </div>
+</div>
+
+<!-- LOG SHEET -->
+<div class="overlay" id="logOverlay" onclick="bgClose(event,'logOverlay')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">📜 לוג שינויים</div>
+    <div id="logContent" style="padding:0 14px"></div>
+    <button class="sheet-close" onclick="closeOverlay('logOverlay')">סגור</button>
+  </div>
+</div>
+
+<!-- NAME ON OPEN -->
+<div class="overlay" id="nameOnOpenOverlay" style="z-index:600">
+  <div class="sheet" style="padding-bottom:28px">
+    <div class="sheet-handle"></div>
+    <div style="text-align:center;padding:0 16px 16px">
+      <div style="font-size:36px;margin-bottom:8px">👤</div>
+      <div style="font-size:18px;font-weight:900;margin-bottom:6px">מי מבצע את הספירה?</div>
+      <div style="font-size:13px;color:var(--muted)">הכנס את שמך להמשך</div>
+    </div>
+    <div style="padding:0 16px;display:flex;flex-direction:column;gap:10px">
+      <input class="text-inp" id="nameOnOpenInput" type="text" placeholder="שם מלא..." maxlength="30">
+      <button class="save-operator-btn" onclick="saveNameOnOpen()">כניסה לאפליקציה ←</button>
+    </div>
+    <div style="text-align:center;margin:16px 16px 0;padding:8px;color:var(--muted);font-size:12px;font-weight:600">נבנה ועוצב ע״י שלמה וונדה</div>
+  </div>
+</div>
+
+<!-- CHAT FAB -->
+<button class="chat-fab" onclick="openChat()" title="צ'אט פנימי">
+  💬
+  <div class="chat-fab-badge" id="chatBadge">0</div>
+</button>
+
+<!-- CHAT OVERLAY -->
+<div class="overlay chat-overlay" id="chatOverlay" onclick="bgClose(event,'chatOverlay')">
+  <div class="sheet chat-sheet" style="padding-bottom:0">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" style="margin-bottom:8px">💬 צ׳אט פנימי <span style="font-size:12px;color:var(--muted);font-weight:600">— בין הסוהרים</span></div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="log-empty">💬 אין הודעות עדיין<br><small>שלח הודעה לסוהרים האחרים</small></div>
+    </div>
+    <div class="chat-input-row">
+      <input class="chat-inp" id="chatInput" type="text" placeholder="כתוב הודעה..." maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="chat-send-btn" onclick="sendChat()">➤</button>
+    </div>
+    <div style="padding:8px 14px 20px">
+      <button class="sheet-close" style="margin:0;width:100%" onclick="closeChat()">סגור</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══ DATA ═══ */
+const WINGS = [
+  {id:'w1', name:'אגף 1',  cells:3 },
+  {id:'w2', name:'אגף 2',  cells:6 },
+  {id:'w3', name:'אגף 3',  cells:10},
+  {id:'w4', name:'אגף 4',  cells:18},
+  {id:'w5', name:'אגף 5',  cells:18},
+  {id:'w7', name:'אגף 7',  cells:26},
+  {id:'w8', name:'אגף 8',  cells:26},
+  {id:'w9', name:'אגף 9',  cells:26},
+  {id:'wm', name:'מכלול',  cells:1 },
+  {id:'w12',name:'אגף 12', cells:15},
+  {id:'w13',name:'אגף 13', cells:14},
+];
+const GENERALS = [
+  'מפעלים','חינוך','מדרשה','מטבח','קנטינה','מרפאה',
+  'בדק בית','אפסנאות','המתנות','ביקורים','שינוע מזון','עבודות רס״ר'
+];
+
+/* ═══ STATE ═══ */
+let state = { wings:{}, general:{}, operator:'', lightMode:false, activeStart:null, winglocks:{}, customGenerals:[] };
+let changeLog = [];
+let archive = [];
+let viewingArchiveEntry = null;
+let currentTab = 'wings';
+let lastSaveTime = 0;
+let saveDebounce = null;
+let backupInterval = null;
+let activeInterval = null;
+let wakeLock = null;
+
+/* ═══ LOGO ═══ */
+(async()=>{
+  try {
+    const res=await fetch('/mnt/user-data/uploads/7e485e34-9ea3-4496-b3bb-e0a8305b66b7.png');
+    const blob=await res.blob();
+    const reader=new FileReader();
+    reader.onload=e=>{ document.getElementById('logoImg').src=e.target.result; };
+    reader.readAsDataURL(blob);
+  } catch(e){ document.getElementById('logoImg').style.display='none'; }
+})();
+
+/* ═══ STORAGE (Firebase) ═══ */
+async function loadFromStorage() {
+  setSyncState('syncing');
+  try {
+    const [data, log, arc] = await Promise.all([
+      fbGet('data'),
+      fbGet('log'),
+      fbGet('archive'),
+    ]);
+    if(data) {
+      state.wings          = data.wings||{};
+      state.general        = data.general||{};
+      state.operator       = data.operator||'';
+      state.lightMode      = data.lightMode||false;
+      state.activeStart    = data.activeStart||null;
+      state.winglocks      = data.winglocks||{};
+      state.customGenerals = data.customGenerals||[];
+    }
+    if(log)  changeLog = log||[];
+    if(arc)  archive   = arc||[];
+    setSyncState('ok');
+  } catch(e){ setSyncState('ok'); }
+}
+
+async function saveToStorage(silent=false) {
+  if(!silent) setSyncState('syncing');
+  try {
+    await fbSet('data', {
+      wings:state.wings, general:state.general,
+      operator:state.operator, lightMode:state.lightMode,
+      activeStart:state.activeStart, winglocks:state.winglocks,
+      customGenerals:state.customGenerals||[],
+      updatedAt:Date.now()
+    });
+    if(!silent) setSyncState('ok');
+    lastSaveTime=Date.now();
+  } catch(e){ if(!silent) setSyncState('error'); }
+}
+
+async function saveToArchive() {
+  const entry = {
+    id: Date.now(),
+    ts: getTimestamp(),
+    operator: state.operator,
+    countName: getCountName()||'ספירה',
+    total: getAllWingsTotal()+getGenTotal(),
+    wingsTotal: getAllWingsTotal(),
+    genTotal: getGenTotal(),
+    done: WINGS.filter(w=>(state.wings[w.id]||{}).done).length,
+    wings: WINGS.map(w=>({ id:w.id, name:w.name, total:getWingTotal(w.id), done:!!(state.wings[w.id]||{}).done })),
+    general: getAllGenerals().map(g=>({ name:g, total:getGenVal(g) }))
+  };
+  archive.unshift(entry);
+  if(archive.length>5) archive.pop();
+  try { await fbSet('archive', archive); } catch(e){}
+  const ba=document.getElementById('badge-archive'); if(ba) ba.textContent=archive.length;
+  return entry;
+}
+
+async function saveLogToStorage() {
+  try { await fbSet('log', changeLog.slice(-200)); } catch(e){}
+}
+
+/* ═══ ARCHIVE UI ═══ */
+function openArchive() {
+  const el=document.getElementById('archiveContent');
+  if(!archive.length){
+    el.innerHTML='<div class="log-empty">🗄️ הארכיון ריק<br><small>כל ספירה שמורה תופיע כאן</small></div>';
+  } else {
+    el.innerHTML=archive.map((e,i)=>{
+      const wingPills=e.wings.map(w=>
+        `<span class="archive-wing-pill${w.total>0?' has':''}">${w.name}${w.total>0?' '+w.total:''}</span>`
+      ).join('');
+      return `<div class="archive-item" onclick="openArchiveDetail(${i})">
+        <div class="archive-header">
+          <div>
+            <div class="archive-name">${e.countName} — ${e.operator||'—'}</div>
+            <div class="archive-meta">${e.ts} &nbsp;|&nbsp; ✅ ${e.done}/${e.wings.length} אגפים</div>
+          </div>
+          <div class="archive-total">${e.total}</div>
+        </div>
+        <div class="archive-wings">${wingPills}</div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('archiveOverlay').classList.add('open');
+}
+
+function openArchiveDetail(i) {
+  viewingArchiveEntry=archive[i];
+  const e=viewingArchiveEntry;
+  document.getElementById('archiveDetailTitle').textContent=`${e.countName} — ${e.ts}`;
+  const wRows=e.wings.map(w=>`
+    <div class="arc-detail-row">
+      <span style="font-weight:700">${w.done?'✅':''} ${w.name}</span>
+      <span style="font-size:18px;font-weight:900;color:${w.total>0?'var(--accent)':'var(--dim)'}">${w.total}</span>
+    </div>`).join('');
+  const gRows=e.general.filter(g=>g.total>0).map(g=>`
+    <div class="arc-detail-row">
+      <span style="color:var(--muted);font-weight:700">${g.name}</span>
+      <span style="font-size:18px;font-weight:900;color:var(--accent)">${g.total}</span>
+    </div>`).join('');
+  document.getElementById('archiveDetailContent').innerHTML=`
+    <div style="background:var(--accent);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;color:#fff">
+      <div><div style="font-size:11px;opacity:.8">סה״כ ספירה</div><div style="font-size:11px;opacity:.8">👤 ${e.operator||'—'}</div></div>
+      <div style="font-size:34px;font-weight:900">${e.total}</div>
+    </div>
+    <div style="padding:0 2px">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">אגפים — ${e.wingsTotal}</div>
+      ${wRows}
+      ${gRows?`<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px">מקומות ציבוריים — ${e.genTotal}</div>${gRows}`:''}
+    </div>`;
+  document.getElementById('archiveDetailOverlay').classList.add('open');
+}
+
+function exportArchiveWA() {
+  const e=viewingArchiveEntry; if(!e) return;
+  let txt=`*ספירת אסירים — בית סוהר דקל*\n📌 ${e.countName}\n📅 ${e.ts}\n👤 ${e.operator||'—'}\n\n*סה״כ ספירה: ${e.total}*\n————————————\n*אגפים (${e.wingsTotal})*\n`;
+  e.wings.forEach(w=>{ txt+=`${w.done?'✅':'⬜'} ${w.name}: ${w.total}\n`; });
+  const genWithData=e.general.filter(g=>g.total>0);
+  if(genWithData.length){ txt+=`\n*מקומות ציבוריים (${e.genTotal})*\n`; genWithData.forEach(g=>{ txt+=`• ${g.name}: ${g.total}\n`; }); }
+  txt+=`————————————\n_נבנה ועוצב ע״י שלמה וונדה_`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
+}
+
+function setSyncState(s) {
+  const d=document.getElementById('syncDot');
+  d.className='sync-dot'+(s==='syncing'?' syncing':s==='error'?' error':'');
+}
+
+async function syncFromServer() {
+  try {
+    const data=await fbGet('data');
+    if(data){
+      if(data.updatedAt&&data.updatedAt>lastSaveTime){
+        state.wings=data.wings||{}; state.general=data.general||{};
+        state.operator=data.operator||''; state.activeStart=data.activeStart||null;
+        state.winglocks=data.winglocks||{}; state.customGenerals=data.customGenerals||[];
+        applyTheme(data.lightMode||false);
+        renderCurrentTab(); updateTotals(); updateInfoBar(); buildQuickScroll();
+        if(state.activeStart) resumeActiveMode(); else stopActiveMode();
+      } else {
+        const newLocks=data.winglocks||{};
+        if(JSON.stringify(newLocks)!==JSON.stringify(state.winglocks)){
+          state.winglocks=newLocks;
+          WINGS.forEach(w=>updateWingLockUI(w.id));
+        }
+      }
+    }
+  } catch(e){}
+  readPresence();
+  readLiveTyping();
+  pollChat();
+}
+
+function scheduleAutoSave() {
+  clearTimeout(saveDebounce);
+  saveDebounce=setTimeout(()=>saveToStorageWithOffline(false),900);
+}
+
+function startAutoBackup() {
+  backupInterval=setInterval(()=>saveToStorage(true), 3*60*1000);
+}
+
+/* ═══ WAKE LOCK ═══ */
+async function requestWakeLock() {
+  try {
+    if('wakeLock' in navigator){
+      if(wakeLock) return;
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release',()=>{ wakeLock=null; });
+    }
+  } catch(e){}
+}
+function releaseWakeLock() {
+  if(wakeLock){ wakeLock.release(); wakeLock=null; }
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) requestWakeLock(); });
+
+/* ═══ PRESENCE ═══ */
+async function writePresence() {
+  if(!state.operator) return;
+  try {
+    const key=state.operator.replace(/[.#$\[\]]/g,'_');
+    await fbSet(`presence/${key}`, { name:state.operator, ts:Date.now() });
+  } catch(e){}
+}
+async function readPresence() {
+  try {
+    const data=await fbGet('presence');
+    if(!data) return;
+    const now=Date.now(), active=[];
+    Object.values(data).forEach(p=>{ if(p&&now-p.ts<120000) active.push(p.name); });
+    renderPresence(active);
+  } catch(e){}
+}
+function renderPresence(users) {
+  const el=document.getElementById('presencePills');
+  if(!el) return;
+  el.innerHTML='';
+  if(!users.length){ el.innerHTML='<span style="font-size:11px;color:var(--dim)">אין מחוברים</span>'; return; }
+  users.forEach(name=>{
+    const pill=document.createElement('div');
+    pill.className='presence-pill'+(name===state.operator?' presence-me':'');
+    pill.innerHTML=`<div class="presence-dot"></div>${name}${name===state.operator?' (אני)':''}`;
+    el.appendChild(pill);
+  });
+}
+
+/* ═══ WING LOCK ═══ */
+function autoLock(wid) {
+  if(!state.winglocks) state.winglocks={};
+  const lockedBy=state.winglocks[wid];
+  if(lockedBy && lockedBy!==state.operator) return;
+  if(!lockedBy){
+    state.winglocks[wid]=state.operator;
+    updateWingLockUI(wid);
+    scheduleAutoSave();
+  }
+}
+function autoUnlock(wid) {
+  if(!state.winglocks) return;
+  if(state.winglocks[wid]===state.operator){
+    delete state.winglocks[wid];
+    updateWingLockUI(wid);
+    scheduleAutoSave();
+  }
+}
+function updateWingLockUI(wid) {
+  const lockedBy=(state.winglocks||{})[wid]||null;
+  const isOtherLock=lockedBy&&lockedBy!==state.operator;
+  const card=document.getElementById(`wcard-${wid}`);
+  if(!card) return;
+  card.classList.toggle('locked-other', !!isOtherLock);
+  const qsBtn=document.getElementById(`qs-${wid}`);
+  if(qsBtn && isOtherLock){ qsBtn.style.background='var(--amber)'; qsBtn.style.borderColor='var(--amber)'; qsBtn.style.color='#fff'; }
+  else if(qsBtn){ qsBtn.style.background=''; qsBtn.style.borderColor=''; qsBtn.style.color=''; }
+  // remove old badge
+  card.querySelector('.locked-other-badge')?.remove();
+  card.querySelector('.locked-by-label')?.remove();
+  if(isOtherLock){
+    const nameBtn=card.querySelector('.wing-name-btn');
+    if(nameBtn){
+      const badge=document.createElement('div');
+      badge.className='locked-other-badge';
+      badge.innerHTML=`<div class="lo-dot"></div>✏️ ${lockedBy} מבצע ספירה`;
+      nameBtn.appendChild(badge);
+    }
+  }
+  const inp=document.getElementById(`winp-${wid}`);
+  if(inp && isOtherLock){ inp.readOnly=true; inp.style.opacity='.5'; }
+  else if(inp && !(state.wings[wid]||{}).useCell){ inp.readOnly=false; inp.style.opacity=''; }
+}
+function toggleLock(wid) { autoLock(wid); }
+
+/* ═══ THEME ═══ */
+function applyTheme(light) {
+  state.lightMode=light;
+  document.body.classList.toggle('light',light);
+  document.getElementById('themeBtn').textContent=light?'🌙':'☀️';
+}
+function toggleTheme(){ manualThemeOverride=true; applyTheme(!state.lightMode); scheduleAutoSave(); }
+
+/* ═══ ISRAEL TIME ═══ */
+function getIsraelTime() {
+  const now=new Date();
+  const parts=now.toLocaleString('he-IL',{timeZone:'Asia/Jerusalem'}).match(/(\d+)\/(\d+)\/(\d+),?\s+(\d+):(\d+)/);
+  if(!parts) return now;
+  const f=new Date(); f.setHours(parseInt(parts[4]),parseInt(parts[5]),0,0); return f;
+}
+function getCountName() {
+  const d=getIsraelTime(), t=d.getHours()*60+d.getMinutes();
+  if(t>=9*60     && t<12*60)   return 'ספירת צהריים';
+  if(t>=14*60+30 && t<17*60)   return 'ספירת ביטחון';
+  if(t>=19*60    && t<24*60)   return 'ספירת לילה';
+  if(t>=4*60     && t<7*60+30) return 'ספירת בוקר';
+  return '';
+}
+function getTimestamp() {
+  const now=new Date();
+  const s=now.toLocaleString('he-IL',{timeZone:'Asia/Jerusalem',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric',hour12:false});
+  return s;
+}
+function getTimeStr() {
+  const now=new Date();
+  return now.toLocaleTimeString('he-IL',{timeZone:'Asia/Jerusalem',hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function getShortTime() {
+  const now=new Date();
+  return now.toLocaleTimeString('he-IL',{timeZone:'Asia/Jerusalem',hour12:false,hour:'2-digit',minute:'2-digit'});
+}
+
+/* ═══ ACTIVE COUNT MODE ═══ */
+function toggleCount() {
+  if(state.activeStart) stopCount();
+  else startCount();
+}
+function startCount() {
+  state.activeStart=Date.now();
+  resumeActiveMode();
+  addLog('התחיל ספירה');
+  scheduleAutoSave();
+}
+function stopCount() {
+  const dur = state.activeStart ? Math.floor((Date.now()-state.activeStart)/1000) : 0;
+  const mm=String(Math.floor(dur/60)).padStart(2,'0'), ss=String(dur%60).padStart(2,'0');
+  addLog(`סיים ספירה (${mm}:${ss})`);
+  state.activeStart=null;
+  stopActiveMode();
+  scheduleAutoSave();
+}
+function resumeActiveMode() {
+  document.getElementById('activeBanner').classList.add('on');
+  document.getElementById('totalBar').classList.add('active-mode');
+  document.getElementById('totalLabel').textContent='ספירה פעילה';
+  document.getElementById('startBtn').style.display='none';
+  if(activeInterval) clearInterval(activeInterval);
+  activeInterval=setInterval(()=>{
+    if(!state.activeStart){ clearInterval(activeInterval); return; }
+    const s=Math.floor((Date.now()-state.activeStart)/1000);
+    document.getElementById('activeTimer').textContent=
+      String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  },1000);
+}
+function stopActiveMode() {
+  if(activeInterval){ clearInterval(activeInterval); activeInterval=null; }
+  document.getElementById('activeBanner').classList.remove('on');
+  document.getElementById('totalBar').classList.remove('active-mode');
+  document.getElementById('totalLabel').textContent='סה״כ ספירה';
+  document.getElementById('startBtn').style.display='';
+  document.getElementById('startBtn').textContent='▶ התחל ספירה';
+  document.getElementById('startBtn').classList.remove('active');
+  document.getElementById('activeTimer').textContent='00:00';
+}
+
+/* ═══ CHANGE LOG ═══ */
+function addLog(what) {
+  changeLog.push({
+    who: state.operator||'לא ידוע',
+    what,
+    time: getShortTime(),
+    ts: Date.now()
+  });
+  if(changeLog.length>200) changeLog.shift();
+  const c=changeLog.length;
+  const el1=document.getElementById('badge-log-menu');
+  if(el1) el1.textContent=c;
+  saveLogToStorage();
+}
+
+/* ═══ TOTALS ═══ */
+function getWingTotal(wid) {
+  const d=state.wings[wid]||{};
+  if(d.useCell) return Object.values(d.cells||{}).reduce((s,v)=>s+(parseInt(v)||0),0);
+  return parseInt(d.direct)||0;
+}
+function getAllGenerals()   { return [...GENERALS, ...(state.customGenerals||[])]; }
+function getGenVal(name)   { return parseInt(state.general[name])||0; }
+function getAllWingsTotal() { return WINGS.reduce((s,w)=>s+getWingTotal(w.id),0); }
+function getGenTotal()     { return getAllGenerals().reduce((s,g)=>s+getGenVal(g),0); }
+
+function updateTotals() {
+  const wt=getAllWingsTotal(), gt=getGenTotal();
+  document.getElementById('grandTotal').textContent     = wt+gt;
+  document.getElementById('wingsTotalDisp').textContent = wt;
+  document.getElementById('genTotalDisp').textContent   = gt;
+  document.getElementById('badge-wings').textContent    = WINGS.filter(w=>getWingTotal(w.id)>0).length;
+  document.getElementById('badge-general').textContent  = getAllGenerals().filter(g=>getGenVal(g)>0).length;
+}
+function updateInfoBar() {
+  document.getElementById('operatorName').textContent = state.operator||'הגדר שם';
+}
+
+/* ═══ CLOCK ═══ */
+function startClock() {
+  let lastAutoNightCheck=0;
+  function tick() {
+    const timeStr=new Date().toLocaleTimeString('he-IL',{timeZone:'Asia/Jerusalem',hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const dateStr=new Date().toLocaleDateString('he-IL',{timeZone:'Asia/Jerusalem',day:'2-digit',month:'2-digit'});
+    document.getElementById('liveClock').innerHTML=
+      `<span style="font-weight:700;color:var(--text)">${timeStr}</span> <span style="color:var(--muted)">${dateStr}</span>`;
+    const name=getCountName();
+    const el=document.getElementById('countNameDisplay');
+    el.textContent=name||'—';
+    el.style.color=name?'var(--accent)':'var(--muted)';
+    // auto night mode check every 60s
+    const now=Date.now();
+    if(now-lastAutoNightCheck>60000){ lastAutoNightCheck=now; checkAutoNightMode(); }
+  }
+  tick(); setInterval(tick,1000);
+}
+
+/* ═══ RENDER ═══ */
+function renderCurrentTab() {
+  const area=document.getElementById('scrollArea');
+  if(currentTab==='wings') renderWings(area);
+  else renderGeneral(area);
+}
+
+function renderWings(area) {
+  area.innerHTML='';
+  area.classList.add('wings-tab');
+  WINGS.forEach(w=>{
+    const wd=state.wings[w.id]||{};
+    const direct=parseInt(wd.direct)||0;
+    const useCell=!!wd.useCell, done=!!wd.done;
+    const total=getWingTotal(w.id), filled=total>0;
+    const lockedBy=(state.winglocks||{})[w.id]||null;
+    const isMyLock=lockedBy===state.operator;
+    const isOtherLock=lockedBy&&!isMyLock;
+
+    const card=document.createElement('div');
+    card.id=`wcard-${w.id}`;
+    card.className='wing-card'+(filled?' filled':'')+(useCell?' open':'')+(done?' done':'')+(isOtherLock?' locked-other':'');
+
+    const mainRow=document.createElement('div'); mainRow.className='wing-main';
+    const nameBtn=document.createElement('div'); nameBtn.className='wing-name-btn';
+    if(w.cells>1){ nameBtn.style.cursor='pointer'; nameBtn.addEventListener('click',()=>toggleWing(w.id)); }
+    nameBtn.innerHTML=`<div class="wing-name">${w.name}</div>`+
+      (w.cells>1?`<div class="wing-sub"><span style="font-size:10px;color:var(--dim)">לחץ לפי תאים</span> <span class="chevron">▼</span></div>`:'') +
+      (isOtherLock?`<div class="locked-by-label">🔒 ${lockedBy}</div>`:'');
+    mainRow.appendChild(nameBtn);
+
+    const right=document.createElement('div'); right.className='wing-right';
+
+    const lockBtn=document.createElement('button');
+    lockBtn.className='lock-btn'+(lockedBy?' locked':'');
+    lockBtn.textContent=lockedBy?'🔒':'🔓';
+    lockBtn.title=isOtherLock?`נעול ע״י ${lockedBy}`:'נעל/שחרר אגף';
+    lockBtn.addEventListener('click',()=>toggleLock(w.id));
+    right.appendChild(lockBtn);
+
+    const statusBtn=document.createElement('button');
+    statusBtn.className='status-btn'; statusBtn.textContent=done?'✓':'○';
+    statusBtn.addEventListener('click',()=>toggleDone(w.id));
+    right.appendChild(statusBtn);
+
+    const inp=document.createElement('input');
+    inp.className='big-inp'+(filled?' filled':'');
+    inp.type='number'; inp.inputMode='numeric'; inp.min='0'; inp.max='9999';
+    inp.placeholder='0'; inp.id=`winp-${w.id}`;
+    inp.value=useCell?(total||''):(direct||'');
+    if(useCell){ inp.readOnly=true; inp.style.opacity='.65'; inp.style.borderStyle='dashed'; }
+    if(isOtherLock){ inp.readOnly=true; inp.style.opacity='.5'; }
+    inp.addEventListener('input',()=>onWingDirect(w.id,inp.value));
+    inp.addEventListener('focus',()=>{ inp.select(); autoLock(w.id); });
+    inp.addEventListener('blur', ()=>autoUnlock(w.id));
+    right.appendChild(inp);
+    mainRow.appendChild(right); card.appendChild(mainRow);
+
+    if(w.cells>1){
+      const ca=document.createElement('div'); ca.className='cells-area';
+      ca.innerHTML='<div class="cells-note">📋 ספירה לפי תאים — הסכום מתעדכן אוטומטית</div>';
+      const grid=document.createElement('div'); grid.className='cells-grid';
+      for(let c=1;c<=w.cells;c++){
+        const cv=(wd.cells||{})[`c${c}`]||'';
+        const box=document.createElement('div');
+        box.className='cell-box'+(cv&&parseInt(cv)>0?' filled':'');
+        box.id=`cbox-${w.id}-${c}`;
+        box.innerHTML=`<div class="cell-lbl">תא ${c}</div>`;
+        const ci=document.createElement('input');
+        ci.className='cell-inp'; ci.type='number'; ci.inputMode='numeric';
+        ci.min='0'; ci.max='99'; ci.placeholder='0'; ci.value=cv; ci.id=`ci-${w.id}-${c}`;
+        ci.addEventListener('input',()=>onCell(w.id,c,ci.value));
+        ci.addEventListener('focus',()=>{ ci.select(); autoLock(w.id); });
+        ci.addEventListener('blur', ()=>autoUnlock(w.id));
+        box.appendChild(ci); grid.appendChild(box);
+      }
+      ca.appendChild(grid); card.appendChild(ca);
+    }
+    area.appendChild(card);
+  });
+}
+
+function renderGeneral(area) {
+  area.innerHTML='';
+  area.classList.remove('wings-tab');
+  const t=document.createElement('div'); t.className='section-title'; t.textContent='מקומות ציבוריים';
+  area.appendChild(t);
+
+  const renderRow = (g, isCustom=false) => {
+    const val=getGenVal(g), filled=val>0;
+    const row=document.createElement('div');
+    row.className='gen-row'+(filled?' filled':''); row.id=`grow-${CSS.escape(g)}`;
+    const nameWrap=document.createElement('div');
+    nameWrap.style.cssText='flex:1;display:flex;align-items:center;gap:8px;min-width:0';
+    const nameEl=document.createElement('div');
+    nameEl.className='gen-name'; nameEl.textContent=g;
+    nameWrap.appendChild(nameEl);
+    if(isCustom){
+      const delBtn=document.createElement('button');
+      delBtn.style.cssText='background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1';
+      delBtn.textContent='✕';
+      delBtn.title='הסר מקום';
+      delBtn.addEventListener('click',()=>deleteCustomGeneral(g));
+      nameWrap.appendChild(delBtn);
+    }
+    row.appendChild(nameWrap);
+    const inp=document.createElement('input');
+    inp.className='big-inp'+(filled?' filled':'');
+    inp.type='number'; inp.inputMode='numeric'; inp.min='0'; inp.max='9999';
+    inp.placeholder='0'; inp.value=val||''; inp.id=`ginp-${g}`;
+    inp.addEventListener('input',()=>onGeneral(g,inp.value));
+    inp.addEventListener('focus',()=>{ inp.select(); autoLock('gen-'+g); });
+    inp.addEventListener('blur', ()=>autoUnlock('gen-'+g));
+    row.appendChild(inp); area.appendChild(row);
+  };
+
+  GENERALS.forEach(g=>renderRow(g, false));
+  (state.customGenerals||[]).forEach(g=>renderRow(g, true));
+
+  // ADD button
+  const addRow=document.createElement('div');
+  addRow.style.cssText='display:flex;gap:8px;margin-top:4px';
+  addRow.innerHTML=`
+    <input id="newGeneralInp" class="text-inp" type="text" placeholder="שם מקום חדש..." maxlength="30"
+      style="flex:1;font-size:15px;padding:10px 14px"
+      onkeydown="if(event.key==='Enter')addCustomGeneral()">
+    <button onclick="addCustomGeneral()"
+      style="background:var(--accent);border:none;color:#fff;border-radius:12px;
+             padding:10px 16px;font-family:'Heebo',sans-serif;font-size:14px;
+             font-weight:800;cursor:pointer;flex-shrink:0;white-space:nowrap">
+      + הוסף
+    </button>`;
+  area.appendChild(addRow);
+}
+
+function addCustomGeneral() {
+  const inp=document.getElementById('newGeneralInp');
+  const name=(inp?.value||'').trim();
+  if(!name){ showToast('יש להכניס שם'); return; }
+  if(getAllGenerals().includes(name)){ showToast('מקום זה כבר קיים'); return; }
+  if(!state.customGenerals) state.customGenerals=[];
+  state.customGenerals.push(name);
+  addLog(`➕ נוסף מקום ציבורי: ${name}`);
+  scheduleAutoSave();
+  renderCurrentTab();
+  buildQuickScroll();
+  showToast(`✅ "${name}" נוסף`);
+  playSound('done');
+}
+
+function deleteCustomGeneral(name) {
+  if(!state.customGenerals) return;
+  state.customGenerals=state.customGenerals.filter(g=>g!==name);
+  delete state.general[name];
+  addLog(`🗑️ הוסר מקום ציבורי: ${name}`);
+  scheduleAutoSave();
+  renderCurrentTab();
+  buildQuickScroll();
+  updateTotals();
+  showToast(`🗑️ "${name}" הוסר`);
+}
+
+
+function toggleWing(wid) {
+  const card=document.getElementById(`wcard-${wid}`);
+  const opening=!card.classList.contains('open');
+  card.classList.toggle('open');
+  if(!state.wings[wid]) state.wings[wid]={direct:0,cells:{},useCell:false,done:false};
+  const wd=state.wings[wid], inpEl=document.getElementById(`winp-${wid}`);
+  if(opening){
+    wd.useCell=true;
+    if(inpEl){ inpEl.value=getWingTotal(wid)||''; inpEl.readOnly=true; inpEl.style.opacity='.65'; inpEl.style.borderStyle='dashed'; }
+  } else {
+    const cs=Object.values(wd.cells||{}).reduce((s,v)=>s+(parseInt(v)||0),0);
+    if(cs===0){ wd.useCell=false; if(inpEl){ inpEl.value=wd.direct||''; inpEl.readOnly=false; inpEl.style.opacity=''; inpEl.style.borderStyle=''; } }
+    else if(inpEl){ inpEl.value=cs||''; }
+  }
+  updateTotals(); scheduleAutoSave();
+}
+
+function toggleDone(wid) {
+  if(!state.wings[wid]) state.wings[wid]={direct:0,cells:{},useCell:false,done:false};
+  state.wings[wid].done=!state.wings[wid].done;
+  const done=state.wings[wid].done;
+  document.getElementById(`wcard-${wid}`)?.classList.toggle('done',done);
+  const btn=document.getElementById(`wcard-${wid}`)?.querySelector('.status-btn');
+  if(btn) btn.textContent=done?'✓':'○';
+  const qsBtn=document.getElementById(`qs-${wid}`);
+  if(qsBtn) qsBtn.className='qs-btn'+(done?' done-q':getWingTotal(wid)>0?' has-data':'');
+  const wingName=WINGS.find(w=>w.id===wid)?.name||wid;
+  addLog(done?`✅ ${wingName} — סומן כהסתיים`:`⬜ ${wingName} — בוטל סיום`);
+  if(done) playSound('done');
+  updateTotals(); scheduleAutoSave();
+}
+
+function onWingDirect(wid, val) {
+  if(!state.wings[wid]) state.wings[wid]={direct:0,cells:{},useCell:false,done:false};
+  const prev=getWingTotal(wid);
+  const v=parseInt(val); state.wings[wid].direct=isNaN(v)?0:v; state.wings[wid].useCell=false;
+  const filled=!isNaN(v)&&v>0;
+  document.getElementById(`wcard-${wid}`)?.classList.toggle('filled',filled);
+  document.getElementById(`winp-${wid}`)?.classList.toggle('filled',filled);
+  const wingName=WINGS.find(w=>w.id===wid)?.name||wid;
+  if(!isNaN(v) && v!==prev) { addLog(`${wingName}: ${prev} → ${v}`); playSound('input'); }
+  publishTyping(wid, isNaN(v)?'':v);
+  updateQsBtn(wid);
+  updateTotals(); scheduleAutoSave();
+}
+
+function onCell(wid, c, val) {
+  if(!state.wings[wid]) state.wings[wid]={direct:0,cells:{},useCell:true,done:false};
+  if(!state.wings[wid].cells) state.wings[wid].cells={};
+  const prev=(state.wings[wid].cells[`c${c}`])||0;
+  const v=parseInt(val); state.wings[wid].cells[`c${c}`]=isNaN(v)?0:v; state.wings[wid].useCell=true;
+  document.getElementById(`cbox-${wid}-${c}`)?.classList.toggle('filled',!isNaN(v)&&v>0);
+  const total=getWingTotal(wid);
+  const inpEl=document.getElementById(`winp-${wid}`);
+  if(inpEl) inpEl.value=total||'';
+  document.getElementById(`wcard-${wid}`)?.classList.toggle('filled',total>0);
+  document.getElementById(`winp-${wid}`)?.classList.toggle('filled',total>0);
+  const wingName=WINGS.find(w=>w.id===wid)?.name||wid;
+  if(!isNaN(v)&&v!==parseInt(prev)) { addLog(`${wingName} תא ${c}: ${prev||0} → ${isNaN(v)?0:v}`); playSound('input'); }
+  publishTyping(wid, total||'');
+
+  // auto-mark done when ALL cells have data
+  const wing=WINGS.find(w=>w.id===wid);
+  if(wing && wing.cells>1){
+    const wd2=state.wings[wid]||{};
+    const filledCells=Object.values(wd2.cells||{}).filter(cv=>parseInt(cv)>0).length;
+    if(filledCells===wing.cells && !wd2.done){
+      // all cells filled — auto-mark done
+      wd2.done=true;
+      document.getElementById(`wcard-${wid}`)?.classList.add('done');
+      const sbtn=document.getElementById(`wcard-${wid}`)?.querySelector('.status-btn');
+      if(sbtn) sbtn.textContent='✓';
+      const qsBtn2=document.getElementById(`qs-${wid}`);
+      if(qsBtn2) qsBtn2.className='qs-btn done-q';
+      addLog(`✅ ${wingName} — סומן אוטומטית (כל התאים מולאו)`);
+      playSound('done');
+      showToast(`✅ ${wingName} — כל התאים מולאו!`);
+    }
+  }
+  updateQsBtn(wid);
+  updateTotals(); scheduleAutoSave();
+}
+
+function onGeneral(name, val) {
+  const prev=getGenVal(name);
+  const v=parseInt(val); state.general[name]=isNaN(v)?0:v;
+  const filled=!isNaN(v)&&v>0;
+  document.getElementById(`grow-${name}`)?.classList.toggle('filled',filled);
+  document.getElementById(`ginp-${name}`)?.classList.toggle('filled',filled);
+  if(!isNaN(v)&&v!==prev) addLog(`${name}: ${prev} → ${v}`);
+  updateQsGenBtn(name);
+  updateTotals(); scheduleAutoSave();
+}
+
+/* ═══ QUICK SCROLL ═══ */
+function buildQuickScroll() {
+  const qs=document.getElementById('quickScroll');
+  qs.innerHTML='';
+  qs.classList.add('visible');
+
+  WINGS.forEach(w=>{
+    const btn=document.createElement('button');
+    btn.id=`qs-${w.id}`;
+    const done=(state.wings[w.id]||{}).done, hasData=getWingTotal(w.id)>0;
+    btn.className='qs-btn'+(done?' done-q':hasData?' has-data':'');
+    btn.textContent=w.name;
+    btn.addEventListener('click',()=>{
+      if(currentTab!=='wings'){ switchTab('wings'); setTimeout(()=>scrollToId(`wcard-${w.id}`),80); }
+      else scrollToId(`wcard-${w.id}`);
+    });
+    qs.appendChild(btn);
+  });
+
+  const sep=document.createElement('div');
+  sep.style.cssText='width:1px;background:var(--border);margin:4px 2px;flex-shrink:0';
+  qs.appendChild(sep);
+
+  getAllGenerals().forEach((g,i)=>{
+    const btn=document.createElement('button');
+    btn.id=`qs-gen-${i}`;
+    btn.className='qs-btn'+(getGenVal(g)>0?' has-data':'');
+    btn.textContent=g;
+    btn.addEventListener('click',()=>{
+      if(currentTab!=='general'){ switchTab('general'); setTimeout(()=>scrollToId(`grow-${g}`),80); }
+      else scrollToId(`grow-${g}`);
+    });
+    qs.appendChild(btn);
+  });
+}
+
+function updateQsBtn(wid) {
+  const btn=document.getElementById(`qs-${wid}`);
+  if(!btn) return;
+  const done=(state.wings[wid]||{}).done;
+  const hasData=getWingTotal(wid)>0;
+  btn.className='qs-btn'+(done?' done-q':hasData?' has-data':'');
+}
+
+function updateQsGenBtn(name) {
+  const i=getAllGenerals().indexOf(name);
+  const btn=document.getElementById(`qs-gen-${i}`);
+  if(!btn) return;
+  btn.className='qs-btn'+(getGenVal(name)>0?' has-data':'');
+}
+
+function scrollToId(id) {
+  const el=document.getElementById(id);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* ═══ TABS ═══ */
+function switchTab(t) {
+  currentTab=t;
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById(`tab-${t}`)?.classList.add('active');
+  renderCurrentTab();
+  buildQuickScroll();
+}
+
+/* ═══ 3-DOTS MENU ═══ */
+function toggleMenu() {
+  const d=document.getElementById('menuDropdown');
+  d.classList.toggle('open');
+}
+function closeMenu() {
+  document.getElementById('menuDropdown').classList.remove('open');
+}
+document.addEventListener('click', e=>{
+  if(!document.getElementById('menuBtn').contains(e.target) &&
+     !document.getElementById('menuDropdown').contains(e.target))
+    closeMenu();
+});
+
+function openLogSheet() {
+  const content=document.getElementById('logContent');
+  if(!changeLog.length){
+    content.innerHTML='<div class="log-empty">📋 הלוג ריק<br><small>כל שינוי יופיע כאן</small></div>';
+  } else {
+    content.innerHTML=[...changeLog].reverse().map(e=>
+      `<div class="log-item"><div class="log-who">👤 ${e.who}</div><div class="log-what">${e.what}</div><div class="log-when">🕐 ${e.time}</div></div>`
+    ).join('');
+  }
+  document.getElementById('logOverlay').classList.add('open');
+}
+
+/* ═══ OPERATOR ═══ */
+function openOperator() {
+  document.getElementById('operatorInput').value=state.operator||'';
+  document.getElementById('operatorOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('operatorInput').focus(),200);
+}
+function saveOperator() {
+  const old=state.operator;
+  state.operator=document.getElementById('operatorInput').value.trim()||'';
+  if(old!==state.operator) addLog(`שינה שם מ"${old||'ריק'}" ל"${state.operator}"`);
+  updateInfoBar(); closeOverlay('operatorOverlay'); scheduleAutoSave();
+}
+function saveNameOnOpen() {
+  const name=document.getElementById('nameOnOpenInput').value.trim();
+  if(!name){ showToast('יש להכניס שם להמשך'); return; }
+  state.operator=name;
+  addLog('נכנס לאפליקציה');
+  updateInfoBar();
+  closeOverlay('nameOnOpenOverlay');
+  writePresence();
+  if(!state.activeStart) startCount();
+  scheduleAutoSave();
+}
+document.getElementById('nameOnOpenInput').addEventListener('keydown',e=>{ if(e.key==='Enter') saveNameOnOpen(); });
+
+/* ═══ SAVE / RESET ═══ */
+async function doSave() {
+  WINGS.forEach(w=>{
+    if(getWingTotal(w.id)>0 && !(state.wings[w.id]||{}).done){
+      if(!state.wings[w.id]) state.wings[w.id]={direct:0,cells:{},useCell:false,done:false};
+      state.wings[w.id].done=true;
+      document.getElementById(`wcard-${w.id}`)?.classList.add('done');
+      const btn=document.getElementById(`wcard-${w.id}`)?.querySelector('.status-btn');
+      if(btn) btn.textContent='✓';
+      const qsBtn=document.getElementById(`qs-${w.id}`);
+      if(qsBtn) qsBtn.className='qs-btn done-q';
+    }
+  });
+  if(state.activeStart) stopCount();
+  await saveToStorageWithOffline(false);
+  await saveToArchive();
+  addLog(`שמר ספירה — סה״כ ${getAllWingsTotal()+getGenTotal()}`);
+  playSound('save');
+  showToast('✅ ספירה נשמרה');
+}
+function doReset(){ document.getElementById('resetOverlay').classList.add('open'); }
+async function confirmReset() {
+  closeOverlay('resetOverlay');
+  addLog('איפס את כל הספירה');
+  state.wings={}; state.general={}; state.activeStart=null;
+  stopActiveMode(); await saveToStorage(false);
+  renderCurrentTab(); updateTotals(); buildQuickScroll(); showToast('🔄 ספירה אופסה');
+}
+
+/* ═══ EXPORT ═══ */
+function openExport(){ document.getElementById('exportOverlay').classList.add('open'); }
+
+function buildWAText() {
+  const ts=getTimestamp(), grand=getAllWingsTotal()+getGenTotal();
+  const cn=getCountName();
+  let txt=`*ספירת אסירים — בית סוהר דקל*\n`;
+  if(cn) txt+=`📌 ${cn}\n`;
+  txt+=`📅 ${ts}\n`;
+  if(state.operator) txt+=`👤 ${state.operator}\n`;
+  txt+=`\n*סה״כ ספירה: ${grand}*\n————————————\n`;
+  txt+=`*אגפים (${getAllWingsTotal()})*\n`;
+  WINGS.forEach(w=>{ const t=getWingTotal(w.id); txt+=`${(state.wings[w.id]||{}).done?'✅':'⬜'} ${w.name}: ${t}\n`; });
+  txt+=`\n*מקומות ציבוריים (${getGenTotal()})*\n`;
+  getAllGenerals().forEach(g=>{ const t=getGenVal(g); if(t>0) txt+=`• ${g}: ${t}\n`; });
+  txt+=`————————————\n✅ אגפים שסיימו: ${WINGS.filter(w=>(state.wings[w.id]||{}).done).length}/${WINGS.length}\n\n_נבנה ועוצב ע״י שלמה וונדה_`;
+  return txt;
+}
+function exportWhatsApp(){ closeOverlay('exportOverlay'); document.getElementById('waText').value=buildWAText(); document.getElementById('waOverlay').classList.add('open'); }
+function openWhatsApp(){ window.open(`https://wa.me/?text=${encodeURIComponent(buildWAText())}`, '_blank'); }
+function copyWA(){
+  const el=document.getElementById('waText'); el.select(); el.setSelectionRange(0,99999);
+  try{ navigator.clipboard.writeText(el.value).then(()=>showToast('✅ הועתק!')); }catch(e){ document.execCommand('copy'); showToast('✅ הועתק!'); }
+}
+
+function exportPDF() {
+  closeOverlay('exportOverlay');
+  const wt=getAllWingsTotal(), gt=getGenTotal(), grand=wt+gt;
+  const ts=getTimestamp(), cn=getCountName();
+  const done=WINGS.filter(w=>(state.wings[w.id]||{}).done).length;
+  const now=new Date();
+  const dateOnly=now.toLocaleDateString('he-IL',{timeZone:'Asia/Jerusalem',day:'2-digit',month:'2-digit',year:'numeric'});
+  const timeOnly=now.toLocaleTimeString('he-IL',{timeZone:'Asia/Jerusalem',hour12:false,hour:'2-digit',minute:'2-digit'});
+
+  const wRows=WINGS.map((w,i)=>{
+    const t=getWingTotal(w.id), d=(state.wings[w.id]||{}).done;
+    const bg=i%2===0?'#fafafa':'#fff';
+    return `<tr style="background:${bg}">
+      <td style="padding:7px 12px;border-bottom:1px solid #e2e8f0">${d?'<span style="color:#16a34a">✓</span>':''} ${w.name}</td>
+      <td style="padding:7px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:700;font-size:16px;color:${t>0?'#0f172a':'#cbd5e1'}">${t}</td>
+      <td style="padding:7px 12px;border-bottom:1px solid #e2e8f0;text-align:center;width:60px"></td>
+    </tr>`;
+  }).join('');
+
+  const gRows=getAllGenerals().map((g,i)=>{
+    const t=getGenVal(g);
+    const bg=i%2===0?'#fafafa':'#fff';
+    return `<tr style="background:${bg}">
+      <td style="padding:7px 12px;border-bottom:1px solid #e2e8f0">${g}</td>
+      <td style="padding:7px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:700;font-size:16px;color:${t>0?'#0f172a':'#cbd5e1'}">${t}</td>
+      <td style="padding:7px 12px;border-bottom:1px solid #e2e8f0;text-align:center;width:60px"></td>
+    </tr>`;
+  }).join('');
+
+  const html=`<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<title>דוח ספירת אסירים — ${dateOnly}</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:Arial,'Times New Roman',sans-serif; color:#0f172a; background:#fff; direction:rtl; }
+  .page { max-width:750px; margin:0 auto; padding:28px 32px; }
+  .header { border-bottom:3px solid #1e3a8a; padding-bottom:14px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:flex-end; }
+  .prison-name { font-size:22px; font-weight:900; color:#1e3a8a; letter-spacing:.5px; }
+  .report-name { font-size:14px; color:#475569; margin-top:2px; }
+  .header-left { text-align:left; direction:ltr; }
+  .doc-number { font-size:11px; color:#94a3b8; margin-bottom:4px; }
+  .doc-date   { font-size:13px; font-weight:700; color:#334155; }
+  .meta-row { display:flex; gap:10px; margin-bottom:18px; }
+  .meta-box { flex:1; border:1.5px solid #e2e8f0; border-radius:8px; padding:10px 14px; background:#f8fafc; }
+  .meta-label { font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:.6px; font-weight:700; margin-bottom:3px; }
+  .meta-value { font-size:15px; font-weight:800; color:#0f172a; }
+  .total-box { background:#1e3a8a; color:#fff; border-radius:10px; padding:16px 22px; display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; }
+  .total-main-label { font-size:11px; color:#93c5fd; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .total-main-num   { font-size:44px; font-weight:900; line-height:1; }
+  .total-subs { display:flex; gap:24px; }
+  .total-sub  { text-align:center; }
+  .total-sub .n { font-size:24px; font-weight:900; color:#bfdbfe; }
+  .total-sub .l { font-size:10px; color:#60a5fa; margin-top:1px; }
+  .section-title { font-size:13px; font-weight:800; color:#1e3a8a; border-right:4px solid #1e3a8a; padding-right:10px; margin:0 0 8px; }
+  table { width:100%; border-collapse:collapse; margin-bottom:22px; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; }
+  thead tr { background:#1e3a8a; color:#fff; }
+  thead th { padding:9px 12px; font-size:12px; text-align:right; font-weight:700; }
+  thead th.num { text-align:center; }
+  thead th.sig { text-align:center; font-size:11px; color:#93c5fd; }
+  tfoot tr { background:#f1f5f9; }
+  tfoot td { padding:9px 12px; font-weight:800; font-size:14px; border-top:2px solid #1e3a8a; }
+  .sig-section { border:1.5px solid #e2e8f0; border-radius:10px; padding:18px 22px; margin-top:20px; background:#f8fafc; }
+  .sig-title { font-size:13px; font-weight:800; color:#334155; margin-bottom:14px; }
+  .sig-row { display:flex; gap:20px; }
+  .sig-box { flex:1; }
+  .sig-label { font-size:11px; color:#94a3b8; margin-bottom:28px; }
+  .sig-line  { border-bottom:1.5px solid #334155; margin-bottom:4px; }
+  .sig-name  { font-size:11px; color:#64748b; }
+  .doc-footer { margin-top:24px; padding-top:12px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; font-size:10px; color:#94a3b8; }
+  @media print { .no-print { display:none; } body { print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="header-right">
+      <div class="prison-name">שירות בתי הסוהר — בית סוהר דקל</div>
+      <div class="report-name">דוח ספירת אסירים רשמי${cn?' — '+cn:''}</div>
+    </div>
+    <div class="header-left">
+      <div class="doc-number">מסמך מספר: BSH-${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}</div>
+      <div class="doc-date">${dateOnly} &nbsp;|&nbsp; ${timeOnly}</div>
+    </div>
+  </div>
+  <div class="meta-row">
+    <div class="meta-box"><div class="meta-label">מפעיל</div><div class="meta-value">${state.operator||'—'}</div></div>
+    <div class="meta-box"><div class="meta-label">שעת ספירה</div><div class="meta-value" style="direction:ltr;text-align:right">${timeOnly}</div></div>
+    <div class="meta-box"><div class="meta-label">תאריך</div><div class="meta-value">${dateOnly}</div></div>
+    <div class="meta-box"><div class="meta-label">אגפים שסיימו</div><div class="meta-value">${done} / ${WINGS.length}</div></div>
+  </div>
+  <div class="total-box">
+    <div>
+      <div class="total-main-label">סה״כ ספירה</div>
+      <div class="total-main-num">${grand}</div>
+    </div>
+    <div class="total-subs">
+      <div class="total-sub"><div class="n">${wt}</div><div class="l">אגפים</div></div>
+      <div class="total-sub"><div class="n">${gt}</div><div class="l">מקומות ציבוריים</div></div>
+    </div>
+  </div>
+  <div class="section-title">אגפים</div>
+  <table>
+    <thead><tr><th>שם האגף</th><th class="num" style="width:80px">כמות</th><th class="sig" style="width:80px">חתימה</th></tr></thead>
+    <tbody>${wRows}</tbody>
+    <tfoot><tr><td>סה״כ אגפים</td><td style="text-align:center;font-size:18px;color:#1e3a8a">${wt}</td><td></td></tr></tfoot>
+  </table>
+  <div class="section-title">מקומות ציבוריים</div>
+  <table>
+    <thead><tr><th>מקום</th><th class="num" style="width:80px">כמות</th><th class="sig" style="width:80px">הערה</th></tr></thead>
+    <tbody>${gRows}</tbody>
+    <tfoot><tr><td>סה״כ מקומות</td><td style="text-align:center;font-size:18px;color:#1e3a8a">${gt}</td><td></td></tr></tfoot>
+  </table>
+  <div class="sig-section">
+    <div class="sig-title">אישורים וחתימות</div>
+    <div class="sig-row">
+      <div class="sig-box"><div class="sig-label">שם הסוהר המדווח</div><div class="sig-line"></div><div class="sig-name">${state.operator||'________________'}</div></div>
+      <div class="sig-box"><div class="sig-label">חתימת המדווח</div><div class="sig-line"></div><div class="sig-name">&nbsp;</div></div>
+      <div class="sig-box"><div class="sig-label">אישור קצין תורן</div><div class="sig-line"></div><div class="sig-name">&nbsp;</div></div>
+    </div>
+  </div>
+  <div class="doc-footer">
+    <span>בית סוהר דקל — שירות בתי הסוהר</span>
+    <span>הופק ב: ${ts}</span>
+    <span>סודי — לשימוש פנימי בלבד</span>
+    <span>נבנה ועוצב ע״י שלמה וונדה</span>
+  </div>
+</div>
+<div class="no-print" style="text-align:center;padding:16px">
+  <button onclick="window.print()" style="padding:12px 32px;background:#1e3a8a;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-family:Arial;font-weight:700">🖨️ הדפס / שמור PDF</button>
+</div>
+</body></html>`;
+
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.target='_blank'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  showToast('📄 נפתח דוח רשמי');
+}
+
+function exportExcel() {
+  closeOverlay('exportOverlay');
+  const ts=getTimestamp(), grand=getAllWingsTotal()+getGenTotal();
+  const rows=[
+    ['ספירת אסירים — בית סוהר דקל'],[`תאריך: ${ts}`],
+    state.operator?[`מפעיל: ${state.operator}`]:[],[],
+    ['סה״כ ספירה',grand],['סה״כ אגפים',getAllWingsTotal()],['סה״כ מקומות ציבוריים',getGenTotal()],[],
+    ['אגף','כמות','סטטוס'],
+    ...WINGS.map(w=>[w.name,getWingTotal(w.id),(state.wings[w.id]||{}).done?'הסתיים':'']),
+    [],[`מקום','כמות`],
+    ...getAllGenerals().map(g=>[g,getGenVal(g)]),
+    [],['לוג שינויים','מי','מתי'],
+    ...changeLog.slice(-50).reverse().map(e=>[e.what,e.who,e.time])
+  ];
+  const csv='\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url;
+  const d=new Date(),p=x=>String(x).padStart(2,'0');
+  a.download=`ספירה_${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()}.csv`;
+  a.click(); URL.revokeObjectURL(url); showToast('📊 קובץ Excel הורד');
+}
+
+/* ═══ REPORT ═══ */
+function openReport() {
+  const wt=getAllWingsTotal(), gt=getGenTotal();
+  const wRows=WINGS.map(w=>{ const t=getWingTotal(w.id),d=(state.wings[w.id]||{}).done; return`<div class="report-row"><span class="rn">${d?'✅ ':''} ${w.name}</span><span class="rv ${t?'p':'z'}">${t}</span></div>`; }).join('');
+  const gRows=getAllGenerals().map(g=>{ const t=getGenVal(g); return`<div class="report-row"><span class="rn">${g}</span><span class="rv ${t?'p':'z'}">${t}</span></div>`; }).join('');
+  const meta=`<div style="text-align:center;color:var(--muted);font-size:12px;margin-bottom:12px">👤 ${state.operator||'—'} &nbsp;|&nbsp; ⏱ ${getTimestamp()}</div>`;
+  document.getElementById('reportContent').innerHTML=`${meta}<div class="report-total"><span>סה״כ ספירה</span><span class="rt-num">${wt+gt}</span></div><div class="report-section"><div class="report-section-title">אגפים — ${wt}</div>${wRows}</div><div class="report-section"><div class="report-section-title">מקומות ציבוריים — ${gt}</div>${gRows}</div>`;
+  document.getElementById('reportOverlay').classList.add('open');
+}
+
+/* ═══ OVERLAYS ═══ */
+function bgClose(e,id){ if(e.target===document.getElementById(id)) closeOverlay(id); }
+function closeOverlay(id){ document.getElementById(id).classList.remove('open'); }
+
+/* ═══ TOAST ═══ */
+let toastT;
+function showToast(msg){
+  const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+/* ═══ SOUND SYSTEM ═══ */
+let soundEnabled = true;
+let audioCtx = null;
+
+function getAudioCtx() {
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playSound(type) {
+  if(!soundEnabled) return;
+  try {
+    const ctx=getAudioCtx();
+    if(ctx.state==='suspended') ctx.resume();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    const t=ctx.currentTime;
+    if(type==='input'){
+      osc.type='sine'; osc.frequency.value=900;
+      gain.gain.setValueAtTime(0.04,t);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.07);
+      osc.start(t); osc.stop(t+0.07);
+    } else if(type==='done'){
+      osc.type='triangle';
+      osc.frequency.setValueAtTime(523,t);
+      osc.frequency.setValueAtTime(784,t+0.12);
+      gain.gain.setValueAtTime(0.14,t);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.35);
+      osc.start(t); osc.stop(t+0.35);
+    } else if(type==='save'){
+      osc.type='sine';
+      osc.frequency.setValueAtTime(440,t);
+      osc.frequency.setValueAtTime(554,t+0.1);
+      osc.frequency.setValueAtTime(659,t+0.2);
+      gain.gain.setValueAtTime(0.12,t);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.5);
+      osc.start(t); osc.stop(t+0.5);
+    } else if(type==='chat'){
+      osc.type='sine';
+      osc.frequency.setValueAtTime(880,t);
+      osc.frequency.setValueAtTime(1100,t+0.07);
+      gain.gain.setValueAtTime(0.09,t);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+      osc.start(t); osc.stop(t+0.2);
+    } else if(type==='offline'){
+      osc.type='sawtooth'; osc.frequency.value=220;
+      gain.gain.setValueAtTime(0.09,t);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+      osc.start(t); osc.stop(t+0.25);
+    }
+  } catch(e){}
+}
+
+function toggleSound() {
+  soundEnabled=!soundEnabled;
+  const lbl=document.getElementById('soundMenuLabel');
+  if(lbl) lbl.textContent=soundEnabled?'צלילים — פעיל':'צלילים — כבוי';
+  showToast(soundEnabled?'🔊 צלילים מופעלים':'🔇 צלילים כבויים');
+}
+
+/* ═══ OFFLINE MODE ═══ */
+let isOnline=navigator.onLine;
+let offlineSaveQueue=[];
+let pendingSaves=0;
+
+function updateOfflineUI() {
+  const banner=document.getElementById('offlineBanner');
+  if(!isOnline){
+    banner.classList.add('visible');
+    playSound('offline');
+    document.getElementById('offlineQueueLabel').textContent=
+      pendingSaves>0?`${pendingSaves} שינויים ממתינים לסנכרון`:'השינויים יסונכרנו כשיחזור החיבור';
+  } else {
+    banner.classList.remove('visible');
+    if(offlineSaveQueue.length) flushOfflineQueue();
+  }
+}
+
+async function flushOfflineQueue() {
+  if(!offlineSaveQueue.length) return;
+  const queue=[...offlineSaveQueue];
+  offlineSaveQueue=[]; pendingSaves=0;
+  for(const fn of queue){ try{ await fn(); }catch(e){ offlineSaveQueue.push(fn); } }
+  if(!offlineSaveQueue.length) showToast('✅ כל הנתונים סונכרנו');
+}
+
+async function saveToStorageWithOffline(silent=false) {
+  if(!isOnline){
+    pendingSaves++;
+    offlineSaveQueue.push(()=>saveToStorage(silent));
+    document.getElementById('offlineQueueLabel').textContent=`${pendingSaves} שינויים ממתינים לסנכרון`;
+    // still save to local state
+    setSyncState('error');
+    return;
+  }
+  await saveToStorage(silent);
+}
+
+window.addEventListener('online', ()=>{ isOnline=true; updateOfflineUI(); showToast('🌐 חיבור חזר!'); });
+window.addEventListener('offline',()=>{ isOnline=false; updateOfflineUI(); });
+
+/* ═══ AUTO NIGHT MODE ═══ */
+let autoNightEnabled=true;
+let manualThemeOverride=false;
+
+function checkAutoNightMode() {
+  if(!autoNightEnabled||manualThemeOverride) return;
+  const h=getIsraelTime().getHours();
+  const shouldBeDark=(h>=19||h<6);
+  if(shouldBeDark===state.lightMode) {
+    state.lightMode=!shouldBeDark;
+    document.body.classList.toggle('light',state.lightMode);
+    document.getElementById('themeBtn').textContent=state.lightMode?'🌙':'☀️';
+  }
+}
+
+function toggleAutoNight() {
+  autoNightEnabled=!autoNightEnabled;
+  const badge=document.getElementById('autoNightBadge');
+  if(badge){
+    badge.textContent=autoNightEnabled?'פעיל':'כבוי';
+    badge.style.background=autoNightEnabled?'var(--green)':'var(--dim)';
+  }
+  if(autoNightEnabled){ manualThemeOverride=false; checkAutoNightMode(); }
+  showToast(autoNightEnabled?'🌙 מצב לילה אוטומטי פעיל':'☀️ מצב לילה אוטומטי כבוי');
+}
+
+/* ═══ LIVE TYPING ═══ */
+let typingPublishDebounce={};
+
+async function publishTyping(wid,value) {
+  if(!state.operator||!value) return;
+  clearTimeout(typingPublishDebounce[wid]);
+  typingPublishDebounce[wid]=setTimeout(async()=>{
+    try {
+      const key=state.operator.replace(/[.#$\[\]]/g,'_');
+      await fbSet(`typing/${key}`,{ wid, value:String(value), ts:Date.now(), name:state.operator });
+    } catch(e){}
+  },120);
+}
+
+async function clearTyping() {
+  if(!state.operator) return;
+  try {
+    const key=state.operator.replace(/[.#$\[\]]/g,'_');
+    await fbDel(`typing/${key}`);
+  } catch(e){}
+}
+
+async function readLiveTyping() {
+  try {
+    const data=await fbGet('typing');
+    document.querySelectorAll('.ghost-pill').forEach(el=>el.remove());
+    if(!data) return;
+    const now=Date.now();
+    Object.values(data).forEach(p=>{
+      if(!p||p.name===state.operator) return;
+      if(now-p.ts>6000) return;
+      const wrap=document.getElementById(`winp-${p.wid}`)?.parentElement;
+      if(wrap&&!wrap.classList.contains('ghost-wrap')){
+        wrap.classList.add('ghost-wrap'); wrap.style.position='relative';
+      }
+      if(wrap){
+        const pill=document.createElement('div');
+        pill.className='ghost-pill';
+        pill.textContent=`${p.name}: ${p.value}`;
+        wrap.appendChild(pill);
+      }
+    });
+  } catch(e){}
+}
+
+/* ═══ INTERNAL CHAT ═══ */
+let chatMessages=[];
+let chatUnread=0;
+let chatIsOpen=false;
+let lastChatTs=0;
+
+async function loadChat() {
+  try {
+    const data=await fbGet('chat');
+    if(data){ chatMessages=Array.isArray(data)?data:Object.values(data)||[]; }
+    if(chatMessages.length) lastChatTs=Math.max(...chatMessages.map(m=>m.ts));
+  } catch(e){}
+}
+
+async function sendChat() {
+  const inp=document.getElementById('chatInput');
+  const text=(inp?.value||'').trim();
+  if(!text) return;
+  inp.value='';
+  const msg={
+    id:Date.now(), name:state.operator||'אנונימי',
+    text, ts:Date.now(), time:getShortTime()
+  };
+  chatMessages.push(msg);
+  if(chatMessages.length>100) chatMessages.shift();
+  lastChatTs=msg.ts;
+  try { await fbSet('chat', chatMessages); } catch(e){}
+  renderChatMessages();
+  playSound('input');
+}
+
+async function pollChat() {
+  if(!isOnline) return;
+  try {
+    const data=await fbGet('chat');
+    if(!data) return;
+    const msgs=Array.isArray(data)?data:Object.values(data)||[];
+    const newMsgs=msgs.filter(m=>m.ts>lastChatTs&&m.name!==state.operator);
+    if(newMsgs.length){
+      chatMessages=msgs;
+      lastChatTs=Math.max(...msgs.map(m=>m.ts));
+      if(!chatIsOpen){
+        chatUnread+=newMsgs.length;
+        updateChatBadge();
+        playSound('chat');
+        showToast(`💬 ${newMsgs[newMsgs.length-1].name}: ${newMsgs[newMsgs.length-1].text.slice(0,30)}`);
+      }
+      if(chatIsOpen) renderChatMessages();
+    }
+  } catch(e){}
+}
+
+function renderChatMessages() {
+  const el=document.getElementById('chatMessages');
+  if(!el) return;
+  if(!chatMessages.length){
+    el.innerHTML='<div class="log-empty">💬 אין הודעות עדיין<br><small>שלח הודעה לסוהרים האחרים</small></div>';
+    return;
+  }
+  el.innerHTML=chatMessages.slice(-80).map(m=>{
+    const isMe=m.name===state.operator;
+    return `<div class="chat-msg ${isMe?'chat-me':'chat-other'}">
+      <div class="chat-bubble ${isMe?'chat-bubble-me':'chat-bubble-other'}">
+        ${!isMe?`<div class="chat-name">${m.name}</div>`:''}
+        <div class="chat-text">${m.text.replace(/</g,'&lt;')}</div>
+        <div class="chat-time">${m.time}</div>
+      </div>
+    </div>`;
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+function openChat() {
+  chatIsOpen=true; chatUnread=0; updateChatBadge();
+  renderChatMessages();
+  document.getElementById('chatOverlay').classList.add('open');
+  setTimeout(()=>{ document.getElementById('chatMessages').scrollTop=99999; document.getElementById('chatInput').focus(); },200);
+}
+
+function closeChat() {
+  chatIsOpen=false;
+  closeOverlay('chatOverlay');
+}
+
+function updateChatBadge() {
+  const b=document.getElementById('chatBadge');
+  if(!b) return;
+  b.textContent=chatUnread>0?chatUnread:'';
+  b.style.display=chatUnread>0?'flex':'none';
+}
+
+/* ═══ QR CODE ═══ */
+// Minimal QR encoder — alphanumeric + byte mode, version auto-select
+function openQR() {
+  const url = window.location.href;
+  document.getElementById('qrUrlDisplay').textContent = url;
+  drawQR(url);
+  document.getElementById('qrOverlay').classList.add('open');
+}
+
+function drawQR(text) {
+  const canvas = document.getElementById('qrCanvas');
+  const ctx = canvas.getContext('2d');
+  const size = 220;
+  canvas.width = size; canvas.height = size;
+
+  // Use the QR API via a reliable public service rendered as image
+  // Draw loading state first
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,size,size);
+  ctx.fillStyle = '#1e3a8a';
+  ctx.font = '13px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('טוען...', size/2, size/2);
+
+  const qrSize = 200;
+  const encoded = encodeURIComponent(text);
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  // Use Google Charts QR API (reliable, no auth needed)
+  img.src = `https://chart.googleapis.com/chart?cht=qr&chs=${qrSize}x${qrSize}&chl=${encoded}&choe=UTF-8&chld=M|2`;
+  img.onload = () => {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,size,size);
+    const offset = (size - qrSize) / 2;
+    ctx.drawImage(img, offset, offset, qrSize, qrSize);
+    // draw small logo square in center
+    const lw = 36, lh = 36;
+    const lx = (size-lw)/2, ly = (size-lh)/2;
+    ctx.fillStyle = '#1e3a8a';
+    ctx.beginPath();
+    ctx.roundRect(lx, ly, lw, lh, 6);
+    ctx.fill();
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🔢', size/2, size/2);
+  };
+  img.onerror = () => {
+    // Fallback: draw QR offline using pure JS
+    drawQROffline(ctx, text, size);
+  };
+}
+
+function drawQROffline(ctx, text, size) {
+  // Simple visual placeholder when offline
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,size,size);
+  ctx.fillStyle='#1e3a8a';
+  // Draw border squares (finder patterns style)
+  const drawBox=(x,y,s)=>{ ctx.fillRect(x,y,s,s); ctx.fillStyle='#fff'; ctx.fillRect(x+3,y+3,s-6,s-6); ctx.fillStyle='#1e3a8a'; ctx.fillRect(x+6,y+6,s-12,s-12); ctx.fillStyle='#1e3a8a'; };
+  drawBox(10,10,40); drawBox(170,10,40); drawBox(10,170,40);
+  // Center message
+  ctx.fillStyle='#334155'; ctx.font='bold 12px Arial'; ctx.textAlign='center';
+  ctx.fillText('QR זמין',size/2,size/2-10);
+  ctx.font='11px Arial'; ctx.fillStyle='#64748b';
+  ctx.fillText('רק עם אינטרנט',size/2,size/2+8);
+  // URL text
+  ctx.font='9px monospace'; ctx.fillStyle='#94a3b8';
+  const words=text.slice(0,40); ctx.fillText(words,size/2,size-14);
+}
+
+function downloadQR() {
+  const canvas = document.getElementById('qrCanvas');
+  const a = document.createElement('a');
+  a.download = 'qr-ספירת-אסירים.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+  showToast('📥 QR נשמר');
+}
+
+function copyQRUrl() {
+  const url = window.location.href;
+  navigator.clipboard.writeText(url)
+    .then(()=>showToast('📋 קישור הועתק!'))
+    .catch(()=>{
+      const ta=document.createElement('textarea');
+      ta.value=url; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('📋 קישור הועתק!');
+    });
+}
+
+/* ═══ PWA ═══ */
+let deferredInstallPrompt = null;
+const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const IS_STANDALONE = window.matchMedia('(display-mode:standalone)').matches
+                    || window.navigator.standalone === true;
+
+function buildIconDataURL(color='#1e3a8a') {
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+    <rect width="192" height="192" rx="40" fill="${color}"/>
+    <text x="96" y="130" font-size="100" text-anchor="middle" font-family="Arial">🔢</text>
+  </svg>`;
+  return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
+}
+
+function injectPWAManifest() {
+  const icon=buildIconDataURL();
+  const manifest={
+    name:'ספירת אסירים — בית סוהר דקל',
+    short_name:'ספירת אסירים',
+    description:'מערכת ספירת אסירים — בית סוהר דקל',
+    start_url:window.location.href,
+    display:'standalone',
+    orientation:'portrait-primary',
+    background_color:'#0d1117',
+    theme_color:'#0d1117',
+    lang:'he',
+    dir:'rtl',
+    icons:[
+      {src:icon,sizes:'192x192',type:'image/svg+xml'},
+      {src:icon,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}
+    ]
+  };
+  const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  const url=URL.createObjectURL(blob);
+  document.getElementById('pwaManifest').href=url;
+  // apple touch icon
+  document.getElementById('appleTouchIcon').href=icon;
+  document.getElementById('faviconSvg').href=icon;
+}
+
+function registerServiceWorker() {
+  if(!('serviceWorker' in navigator)) return;
+  // Service Workers require HTTPS or localhost — skip silently otherwise
+  const loc=window.location;
+  const isSecure=loc.protocol==='https:' || loc.hostname==='localhost' || loc.hostname==='127.0.0.1';
+  if(!isSecure) return;
+
+  const swCode=`
+const CACHE='prison-sw-v2';
+const ASSETS=[self.location.origin+self.location.pathname];
+
+self.addEventListener('install',e=>{
+  e.waitUntil(
+    caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())
+  );
+});
+self.addEventListener('activate',e=>{
+  e.waitUntil(
+    caches.keys().then(keys=>Promise.all(
+      keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))
+    )).then(()=>self.clients.claim())
+  );
+});
+self.addEventListener('fetch',e=>{
+  e.respondWith(
+    caches.match(e.request).then(cached=>{
+      if(cached) return cached;
+      return fetch(e.request).then(res=>{
+        if(!res||res.status!==200||res.type!=='basic') return res;
+        const clone=res.clone();
+        caches.open(CACHE).then(c=>c.put(e.request,clone));
+        return res;
+      }).catch(()=>caches.match(e.request));
+    })
+  );
+});
+  `;
+  try {
+    const blob=new Blob([swCode],{type:'application/javascript'});
+    const swUrl=URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl,{scope:'./'}).catch(()=>{});
+  } catch(e){}
+}
+
+function initPWA() {
+  injectPWAManifest();
+  registerServiceWorker();
+
+  if(IS_STANDALONE){
+    // already installed — show installed indicator in topbar subtitle
+    const sub=document.querySelector('.app-sub');
+    if(sub) sub.innerHTML='בית סוהר דקל &nbsp;<span style="font-size:9px;color:var(--green);font-weight:800;background:rgba(22,163,74,.15);border:1px solid rgba(22,163,74,.3);border-radius:6px;padding:1px 5px">✓ מותקן</span>';
+    return;
+  }
+
+  // iOS — show manual hint
+  if(IS_IOS && !IS_STANDALONE){
+    // show after 4 seconds if not dismissed before
+    const dismissed=sessionStorage.getItem('iosPwaHintDismissed');
+    if(!dismissed){
+      setTimeout(()=>{
+        document.getElementById('iosHint').classList.add('visible');
+        setTimeout(()=>document.getElementById('iosHint').classList.remove('visible'),12000);
+      },4000);
+    }
+    // add menu item
+    addPwaMenuItemIOS();
+    return;
+  }
+
+  // Android/Chrome — wait for beforeinstallprompt
+  window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault();
+    deferredInstallPrompt=e;
+    const dismissed=sessionStorage.getItem('pwaBannerDismissed');
+    if(!dismissed) document.getElementById('pwaBanner').classList.add('visible');
+    addPwaMenuItemAndroid();
+  });
+
+  window.addEventListener('appinstalled',()=>{
+    document.getElementById('pwaBanner').classList.remove('visible');
+    deferredInstallPrompt=null;
+    showToast('✅ האפליקציה הותקנה בהצלחה!');
+    playSound('save');
+    // update subtitle
+    const sub=document.querySelector('.app-sub');
+    if(sub) sub.innerHTML='בית סוהר דקל &nbsp;<span style="font-size:9px;color:var(--green);font-weight:800;background:rgba(22,163,74,.15);border:1px solid rgba(22,163,74,.3);border-radius:6px;padding:1px 5px">✓ מותקן</span>';
+  });
+}
+
+function triggerPwaInstall() {
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(r=>{
+    if(r.outcome==='accepted') document.getElementById('pwaBanner').classList.remove('visible');
+    deferredInstallPrompt=null;
+  });
+}
+
+function dismissPwaBanner() {
+  document.getElementById('pwaBanner').classList.remove('visible');
+  sessionStorage.setItem('pwaBannerDismissed','1');
+}
+
+function addPwaMenuItemAndroid() {
+  const menu=document.getElementById('menuDropdown');
+  if(!menu||document.getElementById('pwaMenuItem')) return;
+  const btn=document.createElement('button');
+  btn.className='menu-item'; btn.id='pwaMenuItem';
+  btn.innerHTML='📲 התקן כאפליקציה';
+  btn.onclick=()=>{ triggerPwaInstall(); closeMenu(); };
+  menu.appendChild(btn);
+}
+
+function addPwaMenuItemIOS() {
+  const menu=document.getElementById('menuDropdown');
+  if(!menu||document.getElementById('pwaMenuItem')) return;
+  const btn=document.createElement('button');
+  btn.className='menu-item'; btn.id='pwaMenuItem';
+  btn.innerHTML='📲 הוסף למסך הבית';
+  btn.onclick=()=>{
+    document.getElementById('iosHint').classList.add('visible');
+    setTimeout(()=>document.getElementById('iosHint').classList.remove('visible'),12000);
+    sessionStorage.removeItem('iosPwaHintDismissed');
+    closeMenu();
+  };
+  menu.appendChild(btn);
+}
+
+/* ═══ INIT ═══ */
+async function init() {
+  await loadFromStorage();
+  await loadChat();
+  applyTheme(state.lightMode||false);
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  renderCurrentTab(); updateTotals(); updateInfoBar();
+  const c=changeLog.length;
+  const bm=document.getElementById('badge-log-menu'); if(bm) bm.textContent=c;
+  const ba=document.getElementById('badge-archive'); if(ba) ba.textContent=archive.length;
+  startClock(); startAutoBackup(); buildQuickScroll();
+  requestWakeLock();
+  // offline monitoring
+  updateOfflineUI();
+  // auto night mode on startup
+  checkAutoNightMode();
+  if(state.activeStart) resumeActiveMode();
+  if(state.operator){ writePresence(); setInterval(writePresence, 30000); }
+  readPresence(); readLiveTyping();
+  if(!state.operator){
+    document.getElementById('nameOnOpenOverlay').classList.add('open');
+    setTimeout(()=>document.getElementById('nameOnOpenInput').focus(),300);
+  }
+  // Firebase real-time listener — instant sync when any user changes data
+  R('data').on('value', snap=>{
+    const data=snap.val();
+    if(!data) return;
+    if(data.updatedAt&&data.updatedAt>lastSaveTime){
+      state.wings=data.wings||{}; state.general=data.general||{};
+      state.activeStart=data.activeStart||null;
+      state.winglocks=data.winglocks||{}; state.customGenerals=data.customGenerals||[];
+      renderCurrentTab(); updateTotals(); updateInfoBar(); buildQuickScroll();
+      if(state.activeStart) resumeActiveMode(); else stopActiveMode();
+    } else {
+      const newLocks=data.winglocks||{};
+      if(JSON.stringify(newLocks)!==JSON.stringify(state.winglocks)){
+        state.winglocks=newLocks;
+        WINGS.forEach(w=>updateWingLockUI(w.id));
+      }
+    }
+  });
+  // Poll presence/typing/chat every 3 seconds
+  setInterval(()=>{ readPresence(); readLiveTyping(); pollChat(); },3000);
+  // PWA
+  initPWA();
+}
+init();
+</script>
+</body>
+</html>
